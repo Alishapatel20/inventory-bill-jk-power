@@ -1,10 +1,13 @@
 .pdf-wrapper {
-  width: 210mm;
-  min-height: 297mm;
-  padding: 18mm;
+  /* Using a fixed pixel width that aligns with the windowWidth passed to doc.html()
+     helps ensure font sizes render predictably. */
+  width: 750px;
   background: white;
   font-family: "Arial", sans-serif;
   color: #222;
+  /* Remove fixed padding; we use PDF margins instead, 
+     but keeping a small internal padding ensures content doesn't touch edges if margin is small */
+  padding: 10px;
 }
 
 .pdf-main-title {
@@ -71,6 +74,34 @@
 .project-table {
   width: 100%;
   border-collapse: collapse;
+}
+
+/* Ensure borders are included in element size and don't get clipped easily */
+* {
+  box-sizing: border-box;
+}
+
+.entry-group {
+  page-break-inside: avoid !important;
+  break-inside: avoid !important;
+  -webkit-column-break-inside: avoid;
+  display: table-row-group;
+  /* Ensure proper table sizing */
+}
+
+tr {
+  page-break-inside: avoid !important;
+  break-inside: avoid !important;
+  page-break-after: auto;
+}
+
+/* Ensure borders are robust against page breaks */
+.project-table td,
+.project-table th {
+  page-break-inside: avoid !important;
+  break-inside: avoid !important;
+  border-bottom: 1px solid #dee2e6 !important;
+  /* Force render */
 }
 
 .project-table th {

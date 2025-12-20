@@ -79,79 +79,77 @@ const PdfTemplate = ({ values, onReady }) => {
                     <th style={{ width: "12%" }}>Spare Cable</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {project.entries.map((entry, eIndex) => {
-                    // Calculate totals for this entry
-                    const entryTotals = {};
-                    entry.descriptions.forEach((d) => {
-                      const unit = d.unit || "Meter";
-                      if (!entryTotals[unit]) entryTotals[unit] = { main: 0, spare: 0 };
-                      entryTotals[unit].main += parseQuantity(d.mainCableQty);
-                      entryTotals[unit].spare += parseQuantity(d.spareCableQty);
-                    });
+                {project.entries.map((entry, eIndex) => {
+                  // Calculate totals for this entry
+                  const entryTotals = {};
+                  entry.descriptions.forEach((d) => {
+                    const unit = d.unit || "Meter";
+                    if (!entryTotals[unit]) entryTotals[unit] = { main: 0, spare: 0 };
+                    entryTotals[unit].main += parseQuantity(d.mainCableQty);
+                    entryTotals[unit].spare += parseQuantity(d.spareCableQty);
+                  });
 
-                    return (
-                      <React.Fragment key={eIndex}>
-                        {entry.descriptions.map((d, i) => (
-                          <tr key={i}>
-                            {i === 0 && (
-                              <td
-                                rowSpan={entry.descriptions.length + 1}
-                                className="left-name-cell"
-                              >
-                                {entry.name}
-                              </td>
-                            )}
-                            <td>{d.itemCode}</td>
-                            <td>{d.desc}</td>
-                            <>
-                              <td>
-                                {d.mainCableQty ? `${d.mainCableQty} ${d.unit && d.unit !== "Meter" ? d.unit.toLowerCase() : ""}` : "-"}
-                              </td>
-                              <td>
-                                {d.spareCableQty ? `${d.spareCableQty} ${d.unit && d.unit !== "Meter" ? d.unit.toLowerCase() : ""}` : "-"}
-                              </td>
-                            </>
-                          </tr>
-                        ))}
-
-                        <tr className="entry-total-row">
-                          <td colSpan="2" className="text-end fw-bold" style={{ verticalAlign: "middle", borderTop: "2px solid #000" }}>Entry Total:</td>
-                          <td className="text-center fw-bold" style={{ verticalAlign: "middle", borderTop: "2px solid #000" }}>
-                            <div style={{ display: "flex", flexDirection: "column", gap: "2px", alignItems: "center" }}>
-                              {Object.entries(entryTotals).map(([unit, counts], idx) => (
-                                counts.main > 0 && (
-                                  <div key={idx}>
-                                    {counts.main} {unit}
-                                  </div>
-                                )
-                              ))}
-                              {Object.values(entryTotals).every(c => c.main === 0) && "-"}
-                            </div>
-                          </td>
-                          <td className="text-center fw-bold" style={{ verticalAlign: "middle", borderTop: "2px solid #000" }}>
-                            <div style={{ display: "flex", flexDirection: "column", gap: "2px", alignItems: "center" }}>
-                              {Object.entries(entryTotals).map(([unit, counts], idx) => (
-                                counts.spare > 0 && (
-                                  <div key={idx}>
-                                    {counts.spare} {unit}
-                                  </div>
-                                )
-                              ))}
-                              {Object.values(entryTotals).every(c => c.spare === 0) && "-"}
-                            </div>
-                          </td>
+                  return (
+                    <tbody key={eIndex} className="entry-group">
+                      {entry.descriptions.map((d, i) => (
+                        <tr key={i}>
+                          {i === 0 && (
+                            <td
+                              rowSpan={entry.descriptions.length + 1}
+                              className="left-name-cell"
+                            >
+                              {entry.name}
+                            </td>
+                          )}
+                          <td>{d.itemCode}</td>
+                          <td>{d.desc}</td>
+                          <>
+                            <td>
+                              {d.mainCableQty ? `${d.mainCableQty} ${d.unit && d.unit !== "Meter" ? d.unit.toLowerCase() : ""}` : "-"}
+                            </td>
+                            <td>
+                              {d.spareCableQty ? `${d.spareCableQty} ${d.unit && d.unit !== "Meter" ? d.unit.toLowerCase() : ""}` : "-"}
+                            </td>
+                          </>
                         </tr>
-                      </React.Fragment>
-                    );
-                  })}
-                </tbody>
+                      ))}
+
+                      <tr className="entry-total-row">
+                        <td colSpan="2" className="text-end fw-bold" style={{ verticalAlign: "middle", borderTop: "2px solid #000" }}>Entry Total:</td>
+                        <td className="text-center fw-bold" style={{ verticalAlign: "middle", borderTop: "2px solid #000" }}>
+                          <div style={{ display: "flex", flexDirection: "column", gap: "2px", alignItems: "center" }}>
+                            {Object.entries(entryTotals).map(([unit, counts], idx) => (
+                              counts.main > 0 && (
+                                <div key={idx}>
+                                  {counts.main} {unit}
+                                </div>
+                              )
+                            ))}
+                            {Object.values(entryTotals).every(c => c.main === 0) && "-"}
+                          </div>
+                        </td>
+                        <td className="text-center fw-bold" style={{ verticalAlign: "middle", borderTop: "2px solid #000" }}>
+                          <div style={{ display: "flex", flexDirection: "column", gap: "2px", alignItems: "center" }}>
+                            {Object.entries(entryTotals).map(([unit, counts], idx) => (
+                              counts.spare > 0 && (
+                                <div key={idx}>
+                                  {counts.spare} {unit}
+                                </div>
+                              )
+                            ))}
+                            {Object.values(entryTotals).every(c => c.spare === 0) && "-"}
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  );
+                })}
               </table>
 
               {/* Project Grand Total - Separate Table matching Live View (Black & White) */}
-              <div style={{ marginTop: "20px", padding: "15px", border: "1px solid #dee2e6", borderRadius: "5px", backgroundColor: "#fff" }}>
-                <h5 style={{ color: "#000", fontWeight: "bold", marginBottom: "15px", margin: "0" }}>
-                  📌 Project Total for:
+              <div style={{ marginTop: "5px", padding: "15px 15px 30px 15px", border: "1px solid #dee2e6", borderRadius: "5px", backgroundColor: "#fff" }}>
+                <h5 style={{ color: "#000", fontWeight: "bold", marginBottom: "25px", marginTop: "0" }}>
+                  Project Total for:
                   <span style={{ color: "#000", marginLeft: "20px" }}>{project.projectName}</span>
                   <span style={{ color: "#6c757d", marginLeft: "10px", fontSize: "0.9em" }}>({project.projectNumber})</span>
                 </h5>

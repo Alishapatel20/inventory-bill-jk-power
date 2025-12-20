@@ -110,19 +110,19 @@ const BillForm = () => {
     nameOfContractor: "J .K. Electrical Surat",
   };
 
-  const validationSchema = Yup.object({
-    name: Yup.string().required("Required"),
-    dateOfCommunication: Yup.date().required("Required"),
-    workOrderNumber: Yup.string().required("Required"),
-    poNumber: Yup.string().required("Required"),
-    dueDateOfCommencement: Yup.date().required("Required"),
-    jwoNumber: Yup.string().required("Required"),
-    subDivision: Yup.string().required("Required"),
-    dueDateOfCompletionOfWork: Yup.date().required("Required"),
-    dateOfCompletion: Yup.date().nullable(),
-    nameOfWork: Yup.string().required("Required"),
-    timeLimitAsPerSubWorkOrder: Yup.string().required("Required"),
-  });
+  // const validationSchema = Yup.object({
+  //   name: Yup.string().required("Required"),
+  //   dateOfCommunication: Yup.date().required("Required"),
+  //   workOrderNumber: Yup.string().required("Required"),
+  //   poNumber: Yup.string().required("Required"),
+  //   dueDateOfCommencement: Yup.date().required("Required"),
+  //   jwoNumber: Yup.string().required("Required"),
+  //   subDivision: Yup.string().required("Required"),
+  //   dueDateOfCompletionOfWork: Yup.date().required("Required"),
+  //   dateOfCompletion: Yup.date().nullable(),
+  //   nameOfWork: Yup.string().required("Required"),
+  //   timeLimitAsPerSubWorkOrder: Yup.string().required("Required"),
+  // });
 
   // === PDF GENERATE ===
   // === PDF GENERATE ===
@@ -134,10 +134,9 @@ const BillForm = () => {
       // Make PdfTemplate render
       setIsPdfReady(true);
 
-      // give React a moment to mount the hidden PDF node
-      setTimeout(async () => {
+      // Give React a moment to render the view
+      setTimeout(() => {
         const input = pdfRef.current;
-
         if (!input) {
           alert("PDF content not ready!");
           setIsPdfReady(false);
@@ -145,36 +144,36 @@ const BillForm = () => {
           return;
         }
 
-        try {
-          const canvas = await html2canvas(input, {
-            scale: Math.max(2, window.devicePixelRatio || 1),
+        const doc = new jsPDF({
+          orientation: "p",
+          unit: "pt",
+          format: "a4",
+        });
+
+        // Use the new .html() method (which uses html2canvas internally)
+        // to handle pagination automatically.
+        doc.html(input, {
+          callback: function (doc) {
+            doc.save(`Inventory_Bill_${values.name || "document"}.pdf`);
+            setIsPdfReady(false);
+            resolve();
+          },
+          x: 20, // Left margin (pt)
+          y: 20, // Top margin (pt)
+          width: 540, // A4 width (595.28) - margins -> Target ~555pt. Using 540 to be safe.
+          windowWidth: 750, // Corresponds to CSS width + padding
+          margin: [20, 20, 20, 20],
+          autoPaging: 'text',
+          html2canvas: {
+            scale: 0.74, // 555pt / 750px ~= 0.74
             useCORS: true,
-            backgroundColor: "#ffffff",
-          });
-
-          const imgData = canvas.toDataURL("image/png");
-
-          // Create PDF using pixel units and exact canvas dimensions to avoid unit mismatch
-          const pdf = new jsPDF({
-            orientation: canvas.width > canvas.height ? "l" : "p",
-            unit: "px",
-            format: [canvas.width, canvas.height],
-          });
-
-          pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
-          pdf.save(`Inventory_Bill_${values.name || "document"}.pdf`);
-        } catch (err) {
-          console.error("PDF generation error:", err);
-          alert("Failed to generate PDF. See console for details.");
-        } finally {
-          setIsPdfReady(false);
-          resolve(); // Resolve the promise when done
-        }
-      }, 800); // <- IMPORTANT: give React enough time
+            logging: true,
+            letterRendering: true,
+          }
+        });
+      }, 500);
     });
   };
-
-
 
   const handleSubmit = async (values, { setSubmitting }) => {
     await generatePDF(values);
@@ -321,368 +320,371 @@ const BillForm = () => {
   };
 
   return (
-    <div className="container my-4">
-      <h2 className="text-center mb-4">Inventory Bill Form</h2>
+    <div style={{ position: "relative" }}>
+      {/* Main Content Wrapper - Occludes the hidden PDF */}
+      <div style={{ position: "relative", zIndex: 5, backgroundColor: "#ffffff", minHeight: "100vh", padding: "1px 0" }}>
+        <div className="container my-4">
+          <h2 className="text-center mb-4">Inventory Bill Form</h2>
 
-      {/* ===== Main Form ===== */}
-      <Formik
-        initialValues={initialValues}
-        validationSchema={validationSchema}
-        onSubmit={handleSubmit}
-      >
-        {({ isSubmitting }) => (
-          <>
-            {isSubmitting && (
-              <div className="loader-overlay">
-                <Spinner animation="border" variant="light" style={{ width: "3rem", height: "3rem" }} />
-                <h4>Generating PDF...</h4>
-              </div>
-            )}
-            <Form className="p-3 border rounded bg-light shadow-sm">
-              <div className="form-group mb-3">
-                <label>Name:</label>
-                <UpperCaseField name="name" />
-                <ErrorMessage name="name" component="div" className="text-danger" />
-              </div>
-
-              <div className="form-group">
-                <label>Date of Communication:</label>
-                <Field type="date" name="dateOfCommunication" className="form-control" />
-                <ErrorMessage
-                  name="dateOfCommunication"
-                  component="div"
-                  className="text-danger"
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Work Order Number:</label>
-                <UpperCaseField name="workOrderNumber" />
-                <ErrorMessage
-                  name="workOrderNumber"
-                  component="div"
-                  className="text-danger"
-                />
-              </div>
-
-              <div className="form-group">
-                <label>P.O. No.:</label>
-                <UpperCaseField name="poNumber" />
-                <ErrorMessage
-                  name="poNumber"
-                  component="div"
-                  className="text-danger"
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Due Date of Commencement:</label>
-                <Field type="date" name="dueDateOfCommencement" className="form-control" />
-                <ErrorMessage
-                  name="dueDateOfCommencement"
-                  component="div"
-                  className="text-danger"
-                />
-              </div>
-
-              <div className="form-group">
-                <label>J.W.O. No.:</label>
-                <UpperCaseField name="jwoNumber" />
-                <ErrorMessage
-                  name="jwoNumber"
-                  component="div"
-                  className="text-danger"
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Sub-Division:</label>
-                <UpperCaseField name="subDivision" />
-                <ErrorMessage
-                  name="subDivision"
-                  component="div"
-                  className="text-danger"
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Due Date of Completion of Work:</label>
-                <Field type="date" name="dueDateOfCompletionOfWork" className="form-control" />
-                <ErrorMessage
-                  name="dueDateOfCompletionOfWork"
-                  component="div"
-                  className="text-danger"
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Date of Completion:</label>
-                <Field type="date" name="dateOfCompletion" className="form-control" />
-              </div>
-
-              <div className="form-group">
-                <label>Name of Work:</label>
-                <UpperCaseField name="nameOfWork" as="textarea" rows={3} />
-                <ErrorMessage
-                  name="nameOfWork"
-                  component="div"
-                  className="text-danger"
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Time Limit as per Sub Work Order:</label>
-                <Field name="timeLimitAsPerSubWorkOrder">
-                  {({ field, form }) => (
-                    <input
-                      {...field}
-                      type="text"
-                      className="form-control"
-                      onChange={(e) => {
-                        form.setFieldValue(
-                          "timeLimitAsPerSubWorkOrder",
-                          e.target.value.toUpperCase()
-                        );
-                      }}
-                      onBlur={(e) => {
-                        field.onBlur(e); // Handle standard Formik blur (touched state)
-                        const val = e.target.value.trim();
-                        // If there is a value and it doesn't already end with " DAYS", append it
-                        if (val && !val.endsWith(" DAYS")) {
-                          form.setFieldValue(
-                            "timeLimitAsPerSubWorkOrder",
-                            `${val} DAYS`
-                          );
-                        }
-                      }}
-                    />
-                  )}
-                </Field>
-                <ErrorMessage
-                  name="timeLimitAsPerSubWorkOrder"
-                  component="div"
-                  className="text-danger"
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Name of Contractor:</label>
-                <Field
-                  type="text"
-                  name="nameOfContractor"
-                  readOnly
-                  className="form-control-plaintext"
-                />
-              </div>
-
-              {/* Buttons */}
-              <div className="d-flex justify-content-between mt-4">
-                <Button
-                  variant="primary"
-                  onClick={() => {
-                    setTempName("");
-                    setSelectedDescriptions([]);
-                    setEditingIndex(null);
-                    setProjectDetails((prev) => ({ ...prev }));
-                    // Clear modal state inputs on open
-                    setModalProjectName("");
-                    setModalProjectNumber("");
-                    setShowModal(true);
-                  }}
-                >
-                  ➕ Add Project
-                </Button>
-                <Button type="submit" variant="success" disabled={isSubmitting}>
-                  {isSubmitting ? "Generating PDF..." : "Submit & Download PDF"}
-                </Button>
-              </div>
-            </Form>
-          </>
-        )}
-      </Formik>
-
-      {/* ===== Project Table Display ===== */}
-      {/* ===== Project Table Display (Header + Table) ===== */}
-      {allProjects.length > 0 && (
-        <div className="mt-5">
-          <h5 className="text-secondary fw-bold mb-3">📋 Added Projects</h5>
-
-          {allProjects.map((project, projectIndex) => (
-            <div
-              key={projectIndex}
-              className="border rounded mb-4 shadow-sm bg-white overflow-hidden"
-            >
-              {/* Project Header */}
-              <div className="bg-primary text-white p-3">
-                <h5 className="mb-0">
-                  <strong>{project.projectName}</strong>{" "}
-                  <span className="fw-light">({project.projectNumber})</span>
-                </h5>
-              </div>
-
-              {/* Project Data Table */}
-              <div className="p-3">
-                {project.entries.length > 0 ? (
-                  <Table bordered hover responsive className="align-middle">
-                    <thead className="table-light text-center">
-                      <tr>
-                        <th style={{ width: "5%" }}>Name</th>
-                        <th style={{ width: "15%" }}>Item Code</th>
-                        <th style={{ width: "40%" }}>Description</th>
-                        <th style={{ width: "20%" }}>Main Cable</th>
-                        <th style={{ width: "20%" }}>Spare Cable</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {project.entries.map((entry, entryIndex) => {
-                        // Calculate totals for this entry
-                        const entryTotals = {};
-                        entry.descriptions.forEach((d) => {
-                          const unit = d.unit || "Meter";
-                          if (!entryTotals[unit]) entryTotals[unit] = { main: 0, spare: 0 };
-                          entryTotals[unit].main += parseQuantity(d.mainCableQty);
-                          entryTotals[unit].spare += parseQuantity(d.spareCableQty);
-                        });
-
-                        return (
-                          <React.Fragment key={entryIndex}>
-                            {entry.descriptions.map((d, i) => (
-                              <tr key={`${entryIndex}-${i}`}>
-                                {/* Only show name for first description */}
-                                {i === 0 ? (
-                                  <td
-                                    rowSpan={entry.descriptions.length + 1}
-                                    className="fw-semibold align-middle bg-light vertical-name-cell"
-                                  >
-                                    {entry.name}
-                                  </td>
-                                ) : null}
-
-                                <td>{d.itemCode || "-"}</td>
-                                <td>{d.desc}</td>
-                                <td className="text-center">
-                                  {d.mainCableQty ? (d.unit && d.unit !== "Meter" ? `${d.mainCableQty} ${d.unit}` : d.mainCableQty) : "-"}
-                                </td>
-                                <td className="text-center">
-                                  {d.spareCableQty ? (d.unit && d.unit !== "Meter" ? `${d.spareCableQty} ${d.unit}` : d.spareCableQty) : "-"}
-                                </td>
-                              </tr>
-                            ))}
-                            {/* Entry Total Row */}
-                            <tr className="fw-bold">
-                              <td colSpan="2" className="text-end align-middle">Total:</td>
-                              <td className="text-center align-middle">
-                                <div className="d-flex flex-column gap-1 align-items-center justify-content-center">
-                                  {Object.entries(entryTotals).map(([unit, counts], idx) => (
-                                    counts.main > 0 && (
-                                      <div key={idx}>
-                                        {counts.main} {unit}
-                                      </div>
-                                    )
-                                  ))}
-                                  {Object.values(entryTotals).every(c => c.main === 0) && "-"}
-                                </div>
-                              </td>
-                              <td className="text-center align-middle">
-                                <div className="d-flex flex-column gap-1 align-items-center justify-content-center">
-                                  {Object.entries(entryTotals).map(([unit, counts], idx) => (
-                                    counts.spare > 0 && (
-                                      <div key={idx}>
-                                        {counts.spare} {unit}
-                                      </div>
-                                    )
-                                  ))}
-                                  {Object.values(entryTotals).every(c => c.spare === 0) && "-"}
-                                </div>
-                              </td>
-                            </tr>
-                          </React.Fragment>
-                        );
-                      })}
-                    </tbody>
-                  </Table>
-                ) : (
-                  <p className="text-muted fst-italic">No entries added.</p>
+          {/* ===== Main Form ===== */}
+          <Formik
+            initialValues={initialValues}
+            // validationSchema={validationSchema}
+            onSubmit={handleSubmit}
+          >
+            {({ isSubmitting }) => (
+              <>
+                {isSubmitting && (
+                  <div className="loader-overlay">
+                    <Spinner animation="border" variant="light" style={{ width: "3rem", height: "3rem" }} />
+                    <h4>Generating PDF...</h4>
+                  </div>
                 )}
+                <Form className="p-3 border rounded bg-light shadow-sm">
+                  <div className="form-group mb-3">
+                    <label>Name:</label>
+                    <UpperCaseField name="name" />
+                    <ErrorMessage name="name" component="div" className="text-danger" />
+                  </div>
 
+                  <div className="form-group">
+                    <label>Date of Communication:</label>
+                    <Field type="date" name="dateOfCommunication" className="form-control" />
+                    <ErrorMessage
+                      name="dateOfCommunication"
+                      component="div"
+                      className="text-danger"
+                    />
+                  </div>
 
-                <div className="mt-4 p-3 rounded border bg-white shadow-sm w-100">
+                  <div className="form-group">
+                    <label>Work Order Number:</label>
+                    <UpperCaseField name="workOrderNumber" />
+                    <ErrorMessage
+                      name="workOrderNumber"
+                      component="div"
+                      className="text-danger"
+                    />
+                  </div>
 
-                  <h5 className="fw-bold text-primary mb-3">
-                    📌 Project Total for:
-                    <span className="text-dark ms-5">{project.projectName}</span>
-                    <span className="text-muted ms-2">({project.projectNumber})</span>
-                  </h5>
+                  <div className="form-group">
+                    <label>P.O. No.:</label>
+                    <UpperCaseField name="poNumber" />
+                    <ErrorMessage
+                      name="poNumber"
+                      component="div"
+                      className="text-danger"
+                    />
+                  </div>
 
-                  <Table bordered responsive className="text-center w-100 mb-0">
-                    <thead className="bg-secondary text-white me-2">
-                      <tr>
-                        <th>Unit Type</th>
-                        <th>Total Main Cable</th>
-                        <th>Total Spare Cable</th>
-                      </tr>
-                    </thead>
+                  <div className="form-group">
+                    <label>Due Date of Commencement:</label>
+                    <Field type="date" name="dueDateOfCommencement" className="form-control" />
+                    <ErrorMessage
+                      name="dueDateOfCommencement"
+                      component="div"
+                      className="text-danger"
+                    />
+                  </div>
 
-                    <tbody>
-                      {(() => {
-                        const totals = {};
+                  <div className="form-group">
+                    <label>J.W.O. No.:</label>
+                    <UpperCaseField name="jwoNumber" />
+                    <ErrorMessage
+                      name="jwoNumber"
+                      component="div"
+                      className="text-danger"
+                    />
+                  </div>
 
-                        project.entries.forEach(entry => {
-                          entry.descriptions.forEach(d => {
-                            const unit = d.unit || "Meter";
-                            if (!totals[unit]) totals[unit] = { main: 0, spare: 0 };
-                            totals[unit].main += parseQuantity(d.mainCableQty);
-                            totals[unit].spare += parseQuantity(d.spareCableQty);
-                          });
-                        });
+                  <div className="form-group">
+                    <label>Sub-Division:</label>
+                    <UpperCaseField name="subDivision" />
+                    <ErrorMessage
+                      name="subDivision"
+                      component="div"
+                      className="text-danger"
+                    />
+                  </div>
 
-                        if (Object.values(totals).every(t => t.main === 0 && t.spare === 0)) {
-                          return (
-                            <tr>
-                              <td colSpan="3" className="text-muted py-3">
-                                No cable quantities added
-                              </td>
-                            </tr>
-                          );
-                        }
+                  <div className="form-group">
+                    <label>Due Date of Completion of Work:</label>
+                    <Field type="date" name="dueDateOfCompletionOfWork" className="form-control" />
+                    <ErrorMessage
+                      name="dueDateOfCompletionOfWork"
+                      component="div"
+                      className="text-danger"
+                    />
+                  </div>
 
-                        return Object.entries(totals).map(([unit, t], idx) => (
-                          <tr key={idx}>
-                            <td className="fw-semibold">{unit}</td>
-                            <td>{t.main > 0 ? `${t.main} ${unit}` : "-"}</td>
-                            <td>{t.spare > 0 ? `${t.spare} ${unit}` : "-"}</td>
+                  <div className="form-group">
+                    <label>Date of Completion:</label>
+                    <Field type="date" name="dateOfCompletion" className="form-control" />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Name of Work:</label>
+                    <UpperCaseField name="nameOfWork" as="textarea" rows={3} />
+                    <ErrorMessage
+                      name="nameOfWork"
+                      component="div"
+                      className="text-danger"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Time Limit as per Sub Work Order:</label>
+                    <Field name="timeLimitAsPerSubWorkOrder">
+                      {({ field, form }) => (
+                        <input
+                          {...field}
+                          type="text"
+                          className="form-control"
+                          onChange={(e) => {
+                            form.setFieldValue(
+                              "timeLimitAsPerSubWorkOrder",
+                              e.target.value.toUpperCase()
+                            );
+                          }}
+                          onBlur={(e) => {
+                            field.onBlur(e); // Handle standard Formik blur (touched state)
+                            const val = e.target.value.trim();
+                            // If there is a value and it doesn't already end with " DAYS", append it
+                            if (val && !val.endsWith(" DAYS")) {
+                              form.setFieldValue(
+                                "timeLimitAsPerSubWorkOrder",
+                                `${val} DAYS`
+                              );
+                            }
+                          }}
+                        />
+                      )}
+                    </Field>
+                    <ErrorMessage
+                      name="timeLimitAsPerSubWorkOrder"
+                      component="div"
+                      className="text-danger"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Name of Contractor:</label>
+                    <Field
+                      type="text"
+                      name="nameOfContractor"
+                      readOnly
+                      className="form-control-plaintext"
+                    />
+                  </div>
+
+                  {/* Buttons */}
+                  <div className="d-flex justify-content-between mt-4">
+                    <Button
+                      variant="primary"
+                      onClick={() => {
+                        setTempName("");
+                        setSelectedDescriptions([]);
+                        setEditingIndex(null);
+                        setProjectDetails((prev) => ({ ...prev }));
+                        // Clear modal state inputs on open
+                        setModalProjectName("");
+                        setModalProjectNumber("");
+                        setShowModal(true);
+                      }}
+                    >
+                      ➕ Add Project
+                    </Button>
+                    <Button type="submit" variant="success" disabled={isSubmitting}>
+                      {isSubmitting ? "Generating PDF..." : "Submit & Download PDF"}
+                    </Button>
+                  </div>
+                </Form>
+              </>
+            )}
+          </Formik>
+
+          {/* ===== Project Table Display (Header + Table) ===== */}
+          {allProjects.length > 0 && (
+            <div className="mt-5">
+              <h5 className="text-secondary fw-bold mb-3">📋 Added Projects</h5>
+
+              {allProjects.map((project, projectIndex) => (
+                <div
+                  key={projectIndex}
+                  className="border rounded mb-4 shadow-sm bg-white overflow-hidden"
+                >
+                  {/* Project Header */}
+                  <div className="bg-primary text-white p-3">
+                    <h5 className="mb-0">
+                      <strong>{project.projectName}</strong>{" "}
+                      <span className="fw-light">({project.projectNumber})</span>
+                    </h5>
+                  </div>
+
+                  {/* Project Data Table */}
+                  <div className="p-3">
+                    {project.entries.length > 0 ? (
+                      <Table bordered hover responsive className="align-middle">
+                        <thead className="table-light text-center">
+                          <tr>
+                            <th style={{ width: "5%" }}>Name</th>
+                            <th style={{ width: "15%" }}>Item Code</th>
+                            <th style={{ width: "40%" }}>Description</th>
+                            <th style={{ width: "20%" }}>Main Cable</th>
+                            <th style={{ width: "20%" }}>Spare Cable</th>
                           </tr>
-                        ));
-                      })()}
-                    </tbody>
-                  </Table>
+                        </thead>
+                        <tbody>
+                          {project.entries.map((entry, entryIndex) => {
+                            // Calculate totals for this entry
+                            const entryTotals = {};
+                            entry.descriptions.forEach((d) => {
+                              const unit = d.unit || "Meter";
+                              if (!entryTotals[unit]) entryTotals[unit] = { main: 0, spare: 0 };
+                              entryTotals[unit].main += parseQuantity(d.mainCableQty);
+                              entryTotals[unit].spare += parseQuantity(d.spareCableQty);
+                            });
+
+                            return (
+                              <React.Fragment key={entryIndex}>
+                                {entry.descriptions.map((d, i) => (
+                                  <tr key={`${entryIndex}-${i}`}>
+                                    {/* Only show name for first description */}
+                                    {i === 0 ? (
+                                      <td
+                                        rowSpan={entry.descriptions.length + 1}
+                                        className="fw-semibold align-middle bg-light vertical-name-cell"
+                                      >
+                                        {entry.name}
+                                      </td>
+                                    ) : null}
+
+                                    <td>{d.itemCode || "-"}</td>
+                                    <td>{d.desc}</td>
+                                    <td className="text-center">
+                                      {d.mainCableQty ? (d.unit && d.unit !== "Meter" ? `${d.mainCableQty} ${d.unit}` : d.mainCableQty) : "-"}
+                                    </td>
+                                    <td className="text-center">
+                                      {d.spareCableQty ? (d.unit && d.unit !== "Meter" ? `${d.spareCableQty} ${d.unit}` : d.spareCableQty) : "-"}
+                                    </td>
+                                  </tr>
+                                ))}
+                                {/* Entry Total Row */}
+                                <tr className="fw-bold">
+                                  <td colSpan="2" className="text-end align-middle">Total:</td>
+                                  <td className="text-center align-middle">
+                                    <div className="d-flex flex-column gap-1 align-items-center justify-content-center">
+                                      {Object.entries(entryTotals).map(([unit, counts], idx) => (
+                                        counts.main > 0 && (
+                                          <div key={idx}>
+                                            {counts.main} {unit}
+                                          </div>
+                                        )
+                                      ))}
+                                      {Object.values(entryTotals).every(c => c.main === 0) && "-"}
+                                    </div>
+                                  </td>
+                                  <td className="text-center align-middle">
+                                    <div className="d-flex flex-column gap-1 align-items-center justify-content-center">
+                                      {Object.entries(entryTotals).map(([unit, counts], idx) => (
+                                        counts.spare > 0 && (
+                                          <div key={idx}>
+                                            {counts.spare} {unit}
+                                          </div>
+                                        )
+                                      ))}
+                                      {Object.values(entryTotals).every(c => c.spare === 0) && "-"}
+                                    </div>
+                                  </td>
+                                </tr>
+                              </React.Fragment>
+                            );
+                          })}
+                        </tbody>
+                      </Table>
+                    ) : (
+                      <p className="text-muted fst-italic">No entries added.</p>
+                    )}
+
+
+                    <div className="mt-4 p-3 rounded border bg-white shadow-sm w-100">
+
+                      <h5 className="fw-bold text-primary mb-3">
+                        📌 Project Total for:
+                        <span className="text-dark ms-5">{project.projectName}</span>
+                        <span className="text-muted ms-2">({project.projectNumber})</span>
+                      </h5>
+
+                      <Table bordered responsive className="text-center w-100 mb-0">
+                        <thead className="bg-secondary text-white me-2">
+                          <tr>
+                            <th>Unit Type</th>
+                            <th>Total Main Cable</th>
+                            <th>Total Spare Cable</th>
+                          </tr>
+                        </thead>
+
+                        <tbody>
+                          {(() => {
+                            const totals = {};
+
+                            project.entries.forEach(entry => {
+                              entry.descriptions.forEach(d => {
+                                const unit = d.unit || "Meter";
+                                if (!totals[unit]) totals[unit] = { main: 0, spare: 0 };
+                                totals[unit].main += parseQuantity(d.mainCableQty);
+                                totals[unit].spare += parseQuantity(d.spareCableQty);
+                              });
+                            });
+
+                            if (Object.values(totals).every(t => t.main === 0 && t.spare === 0)) {
+                              return (
+                                <tr>
+                                  <td colSpan="3" className="text-muted py-3">
+                                    No cable quantities added
+                                  </td>
+                                </tr>
+                              );
+                            }
+
+                            return Object.entries(totals).map(([unit, t], idx) => (
+                              <tr key={idx}>
+                                <td className="fw-semibold">{unit}</td>
+                                <td>{t.main > 0 ? `${t.main} ${unit}` : "-"}</td>
+                                <td>{t.spare > 0 ? `${t.spare} ${unit}` : "-"}</td>
+                              </tr>
+                            ));
+                          })()}
+                        </tbody>
+                      </Table>
+                    </div>
+
+
+
+
+
+
+
+
+
+
+                    {/* Delete Project Button */}
+                    <div className="text-end mt-3">
+                      <Button
+                        variant="outline-danger"
+                        size="sm"
+                        onClick={() => handleDeleteProject(projectIndex)}
+                      >
+                        <Trash size={14} className="me-1" /> Delete Project
+                      </Button>
+                    </div>
+                  </div>
                 </div>
-
-
-
-
-
-
-
-
-
-
-                {/* Delete Project Button */}
-                <div className="text-end mt-3">
-                  <Button
-                    variant="outline-danger"
-                    size="sm"
-                    onClick={() => handleDeleteProject(projectIndex)}
-                  >
-                    <Trash size={14} className="me-1" /> Delete Project
-                  </Button>
-                </div>
-              </div>
+              ))}
             </div>
-          ))}
+          )}
         </div>
-      )}
-
+      </div>
 
       {/* PDF Template */}
       {formValues && (
@@ -691,8 +693,10 @@ const BillForm = () => {
           style={{
             position: "fixed",
             top: 0,
-            left: "-10000px",
-            zIndex: -1, // Ensure it's behind everything else but still "rendered"
+            left: 0, // In view for html2canvas
+            zIndex: -5, // Behind the white wrapper
+            visibility: "visible",
+            background: "white",
           }}
         >
           <PdfTemplate
@@ -701,7 +705,6 @@ const BillForm = () => {
           />
         </div>
       )}
-
 
       {/* Project Modal */}
       <Modal show={showModal} onHide={() => setShowModal(false)} centered size="lg">
@@ -927,7 +930,7 @@ const BillForm = () => {
           </Button>
         </Modal.Footer>
       </Modal>
-    </div>
+    </div >
   );
 };
 
