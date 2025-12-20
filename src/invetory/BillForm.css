@@ -1,0 +1,107 @@
+.pdf-wrapper {
+  width: 210mm;
+  min-height: 297mm;
+  padding: 18mm;
+  background: white;
+  font-family: "Arial", sans-serif;
+  color: #222;
+}
+
+.pdf-main-title {
+  text-align: center;
+  font-size: 26px;
+  font-weight: 700;
+  margin-bottom: 5px;
+}
+
+.pdf-sub-title {
+  text-align: center;
+  font-size: 14px;
+  color: #555;
+  margin-bottom: 20px;
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 10px;
+  border-left: 5px solid #007bff;
+  padding-left: 8px;
+}
+
+.info-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 18px;
+}
+
+.info-table th {
+  background: #f5f6fa;
+  font-weight: bold;
+  width: 40%;
+  padding: 6px;
+  border: 1px solid #ccc;
+}
+
+.info-table td {
+  padding: 6px;
+  border: 1px solid #eee;
+}
+
+.project-box {
+  margin-bottom: 25px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 10px 12px;
+  background: #fafafa;
+}
+
+.project-header {
+  background: #007bff;
+  color: white;
+  padding: 8px 12px;
+  font-size: 15px;
+  font-weight: bold;
+  border-radius: 4px;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.project-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.project-table th {
+  background: #f1f1f1;
+  padding: 8px;
+  border: 1px solid #ccc;
+  font-size: 13px;
+}
+
+.project-table td {
+  padding: 6px 8px;
+  border: 1px solid #ddd;
+  font-size: 12px;
+  vertical-align: top;
+}
+
+.entry-total-row {
+  background: #e7f8e7;
+  font-weight: bold;
+}
+
+.project-total-row {
+  background: #2e2e2e;
+  color: white;
+  font-weight: bold;
+}
+
+.left-name-cell {
+  background: #f7f7f7;
+  font-weight: bold;
+  vertical-align: middle;
+  text-align: center;
+  width: 80px;
+}
