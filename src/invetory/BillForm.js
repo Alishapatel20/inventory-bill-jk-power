@@ -26,6 +26,27 @@ const parseQuantity = (qty) => {
   return match ? parseFloat(match[0]) : 0;
 };
 
+const UpperCaseField = ({ name, placeholder, as = "input", type = "text", ...props }) => (
+  <Field name={name}>
+    {({ field, form }) => {
+      const Component = as;
+      return (
+        <Component
+          {...field}
+          {...props}
+          type={as === "input" ? type : undefined}
+          placeholder={placeholder}
+          className="form-control"
+          value={field.value || ""}
+          onChange={(e) => {
+            form.setFieldValue(name, e.target.value.toUpperCase());
+          }}
+        />
+      );
+    }}
+  </Field>
+);
+
 const BillForm = () => {
   const pdfRef = useRef(null);
   const nameInputRef = useRef(null); // Ref for scrolling
@@ -37,7 +58,9 @@ const BillForm = () => {
   const [isPdfReady, setIsPdfReady] = useState(false);
   const [isPdfMounted, setIsPdfMounted] = useState(false);
 
-
+  // Modal State for Project Name/Number
+  const [modalProjectName, setModalProjectName] = useState("");
+  const [modalProjectNumber, setModalProjectNumber] = useState("");
 
   const [projectDetails, setProjectDetails] = useState({
     projectName: "",
@@ -102,48 +125,53 @@ const BillForm = () => {
   });
 
   // === PDF GENERATE ===
+  // === PDF GENERATE ===
   const generatePDF = async (values) => {
-    const fullValues = { ...values, allProjects };
-    setFormValues(fullValues);
+    return new Promise((resolve) => {
+      const fullValues = { ...values, allProjects };
+      setFormValues(fullValues);
 
-    // Make PdfTemplate render
-    setIsPdfReady(true);
+      // Make PdfTemplate render
+      setIsPdfReady(true);
 
-    // give React a moment to mount the hidden PDF node
-    setTimeout(async () => {
-      const input = pdfRef.current;
+      // give React a moment to mount the hidden PDF node
+      setTimeout(async () => {
+        const input = pdfRef.current;
 
-      if (!input) {
-        alert("PDF content not ready!");
-        setIsPdfReady(false);
-        return;
-      }
+        if (!input) {
+          alert("PDF content not ready!");
+          setIsPdfReady(false);
+          resolve();
+          return;
+        }
 
-      try {
-        const canvas = await html2canvas(input, {
-          scale: Math.max(2, window.devicePixelRatio || 1),
-          useCORS: true,
-          backgroundColor: "#ffffff",
-        });
+        try {
+          const canvas = await html2canvas(input, {
+            scale: Math.max(2, window.devicePixelRatio || 1),
+            useCORS: true,
+            backgroundColor: "#ffffff",
+          });
 
-        const imgData = canvas.toDataURL("image/png");
+          const imgData = canvas.toDataURL("image/png");
 
-        // Create PDF using pixel units and exact canvas dimensions to avoid unit mismatch
-        const pdf = new jsPDF({
-          orientation: canvas.width > canvas.height ? "l" : "p",
-          unit: "px",
-          format: [canvas.width, canvas.height],
-        });
+          // Create PDF using pixel units and exact canvas dimensions to avoid unit mismatch
+          const pdf = new jsPDF({
+            orientation: canvas.width > canvas.height ? "l" : "p",
+            unit: "px",
+            format: [canvas.width, canvas.height],
+          });
 
-        pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
-        pdf.save(`Inventory_Bill_${values.name || "document"}.pdf`);
-      } catch (err) {
-        console.error("PDF generation error:", err);
-        alert("Failed to generate PDF. See console for details.");
-      } finally {
-        setIsPdfReady(false);
-      }
-    }, 800); // <- IMPORTANT: give React enough time
+          pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
+          pdf.save(`Inventory_Bill_${values.name || "document"}.pdf`);
+        } catch (err) {
+          console.error("PDF generation error:", err);
+          alert("Failed to generate PDF. See console for details.");
+        } finally {
+          setIsPdfReady(false);
+          resolve(); // Resolve the promise when done
+        }
+      }, 800); // <- IMPORTANT: give React enough time
+    });
   };
 
 
@@ -175,8 +203,13 @@ const BillForm = () => {
 
 
   const handleCableChange = (desc, field, value) => {
+    // Force uppercase for text inputs only (qty fields)
+    const finalValue = (field === "mainCableQty" || field === "spareCableQty")
+      ? value.toUpperCase()
+      : value;
+
     setSelectedDescriptions((prev) =>
-      prev.map((d) => (d.desc === desc ? { ...d, [field]: value } : d))
+      prev.map((d) => (d.desc === desc ? { ...d, [field]: finalValue } : d))
     );
   };
 
@@ -255,10 +288,10 @@ const BillForm = () => {
   };
 
   const handleProjectSave = () => {
-    const projectName = document.getElementById("projectName").value.trim();
-    const projectNumber = document.getElementById("projectNumber").value.trim();
+    const pName = modalProjectName.trim();
+    const pNumber = modalProjectNumber.trim();
 
-    if (!projectName || !projectNumber) {
+    if (!pName || !pNumber) {
       alert("Please fill both Project Name and Project Number");
       return;
     }
@@ -270,12 +303,15 @@ const BillForm = () => {
 
     const newProject = {
       ...projectDetails,
-      projectName,
-      projectNumber,
+      projectName: pName,
+      projectNumber: pNumber,
     };
 
     setAllProjects((prev) => [...prev, newProject]); // ✅ Add to all projects
+    // Reset
     setProjectDetails({ projectName: "", projectNumber: "", entries: [] });
+    setModalProjectName("");
+    setModalProjectNumber("");
     setShowModal(false);
   };
 
@@ -305,7 +341,7 @@ const BillForm = () => {
             <Form className="p-3 border rounded bg-light shadow-sm">
               <div className="form-group mb-3">
                 <label>Name:</label>
-                <Field type="text" name="name" className="form-control" />
+                <UpperCaseField name="name" />
                 <ErrorMessage name="name" component="div" className="text-danger" />
               </div>
 
@@ -321,7 +357,7 @@ const BillForm = () => {
 
               <div className="form-group">
                 <label>Work Order Number:</label>
-                <Field type="text" name="workOrderNumber" className="form-control" />
+                <UpperCaseField name="workOrderNumber" />
                 <ErrorMessage
                   name="workOrderNumber"
                   component="div"
@@ -331,7 +367,7 @@ const BillForm = () => {
 
               <div className="form-group">
                 <label>P.O. No.:</label>
-                <Field type="text" name="poNumber" className="form-control" />
+                <UpperCaseField name="poNumber" />
                 <ErrorMessage
                   name="poNumber"
                   component="div"
@@ -351,7 +387,7 @@ const BillForm = () => {
 
               <div className="form-group">
                 <label>J.W.O. No.:</label>
-                <Field type="text" name="jwoNumber" className="form-control" />
+                <UpperCaseField name="jwoNumber" />
                 <ErrorMessage
                   name="jwoNumber"
                   component="div"
@@ -361,7 +397,7 @@ const BillForm = () => {
 
               <div className="form-group">
                 <label>Sub-Division:</label>
-                <Field type="text" name="subDivision" className="form-control" />
+                <UpperCaseField name="subDivision" />
                 <ErrorMessage
                   name="subDivision"
                   component="div"
@@ -386,7 +422,7 @@ const BillForm = () => {
 
               <div className="form-group">
                 <label>Name of Work:</label>
-                <Field type="text" name="nameOfWork" className="form-control" />
+                <UpperCaseField name="nameOfWork" as="textarea" rows={3} />
                 <ErrorMessage
                   name="nameOfWork"
                   component="div"
@@ -396,7 +432,32 @@ const BillForm = () => {
 
               <div className="form-group">
                 <label>Time Limit as per Sub Work Order:</label>
-                <Field type="text" name="timeLimitAsPerSubWorkOrder" className="form-control" />
+                <Field name="timeLimitAsPerSubWorkOrder">
+                  {({ field, form }) => (
+                    <input
+                      {...field}
+                      type="text"
+                      className="form-control"
+                      onChange={(e) => {
+                        form.setFieldValue(
+                          "timeLimitAsPerSubWorkOrder",
+                          e.target.value.toUpperCase()
+                        );
+                      }}
+                      onBlur={(e) => {
+                        field.onBlur(e); // Handle standard Formik blur (touched state)
+                        const val = e.target.value.trim();
+                        // If there is a value and it doesn't already end with " DAYS", append it
+                        if (val && !val.endsWith(" DAYS")) {
+                          form.setFieldValue(
+                            "timeLimitAsPerSubWorkOrder",
+                            `${val} DAYS`
+                          );
+                        }
+                      }}
+                    />
+                  )}
+                </Field>
                 <ErrorMessage
                   name="timeLimitAsPerSubWorkOrder"
                   component="div"
@@ -423,6 +484,9 @@ const BillForm = () => {
                     setSelectedDescriptions([]);
                     setEditingIndex(null);
                     setProjectDetails((prev) => ({ ...prev }));
+                    // Clear modal state inputs on open
+                    setModalProjectName("");
+                    setModalProjectNumber("");
                     setShowModal(true);
                   }}
                 >
@@ -602,6 +666,7 @@ const BillForm = () => {
 
 
 
+
                 {/* Delete Project Button */}
                 <div className="text-end mt-3">
                   <Button
@@ -651,11 +716,19 @@ const BillForm = () => {
             <Row className="mb-3">
               <Col md={6}>
                 <BootstrapForm.Label>Project Name:</BootstrapForm.Label>
-                <BootstrapForm.Control id="projectName" placeholder="Enter project name" />
+                <BootstrapForm.Control
+                  value={modalProjectName}
+                  onChange={(e) => setModalProjectName(e.target.value.toUpperCase())}
+                  placeholder="Enter project name"
+                />
               </Col>
               <Col md={6}>
                 <BootstrapForm.Label>Project Number:</BootstrapForm.Label>
-                <BootstrapForm.Control id="projectNumber" placeholder="Enter project number" />
+                <BootstrapForm.Control
+                  value={modalProjectNumber}
+                  onChange={(e) => setModalProjectNumber(e.target.value.toUpperCase())}
+                  placeholder="Enter project number"
+                />
               </Col>
             </Row>
 
@@ -668,7 +741,7 @@ const BillForm = () => {
               ref={nameInputRef} // Attach ref
               placeholder="Enter name"
               value={tempName}
-              onChange={(e) => setTempName(e.target.value)}
+              onChange={(e) => setTempName(e.target.value.toUpperCase())}
             />
 
             <BootstrapForm.Label className="mt-3">Description:</BootstrapForm.Label>
