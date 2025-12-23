@@ -156,3 +156,75 @@ tr {
   margin-top: 20px;
   font-weight: 600;
 }
+
+/* =========================================
+   MOBILE RESPONSIVENESS
+   ========================================= */
+
+@media (max-width: 768px) {
+
+  /* Container & Layout */
+  .container {
+    padding-left: 15px;
+    padding-right: 15px;
+  }
+
+  /* Typography */
+  h2,
+  h3,
+  h4 {
+    font-size: 1.25rem !important;
+  }
+
+  h5 {
+    font-size: 1rem !important;
+  }
+
+  /* Form spacing */
+  .form-group {
+    margin-bottom: 12px;
+  }
+
+  /* Buttons */
+  .d-flex.justify-content-between {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .d-flex.justify-content-between button {
+    width: 100%;
+    margin-bottom: 5px;
+  }
+
+  /* Tables */
+  .table-responsive {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Force table cells to not wrap too aggressively */
+  table th,
+  table td {
+    white-space: nowrap;
+    min-width: 120px;
+    /* Ensure columns don't collapse too much */
+  }
+
+  /* Specific column adjustments */
+  .vertical-name-cell {
+    min-width: 100px;
+    white-space: normal !important;
+    /* Allow wrapping for location name */
+  }
+
+  /* Modal */
+  .modal-dialog {
+    margin: 10px;
+  }
+
+  .modal-body {
+    padding: 1rem;
+  }
+}

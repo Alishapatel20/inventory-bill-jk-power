@@ -72,7 +72,7 @@ const PdfTemplate = ({ values, onReady }) => {
               <table className="project-table">
                 <thead>
                   <tr>
-                    <th style={{ width: "18%" }}>Name</th>
+                    <th style={{ width: "18%" }}>Location Name</th>
                     <th style={{ width: "15%" }}>Item Code</th>
                     <th>Description</th>
                     <th style={{ width: "12%" }}>Main Cable</th>
@@ -80,13 +80,8 @@ const PdfTemplate = ({ values, onReady }) => {
                   </tr>
                 </thead>
                 {project.entries.map((entry, eIndex) => {
-                  // Calculate totals for this entry
-                  const entryTotals = {};
                   entry.descriptions.forEach((d) => {
-                    const unit = d.unit || "Meter";
-                    if (!entryTotals[unit]) entryTotals[unit] = { main: 0, spare: 0 };
-                    entryTotals[unit].main += parseQuantity(d.mainCableQty);
-                    entryTotals[unit].spare += parseQuantity(d.spareCableQty);
+                    // No complex unit aggregation for totals anymore
                   });
 
                   return (
@@ -114,33 +109,7 @@ const PdfTemplate = ({ values, onReady }) => {
                         </tr>
                       ))}
 
-                      <tr className="entry-total-row">
-                        <td colSpan="2" className="text-end fw-bold" style={{ verticalAlign: "middle", borderTop: "2px solid #000" }}>Entry Total:</td>
-                        <td className="text-center fw-bold" style={{ verticalAlign: "middle", borderTop: "2px solid #000" }}>
-                          <div style={{ display: "flex", flexDirection: "column", gap: "2px", alignItems: "center" }}>
-                            {Object.entries(entryTotals).map(([unit, counts], idx) => (
-                              counts.main > 0 && (
-                                <div key={idx}>
-                                  {counts.main} {unit}
-                                </div>
-                              )
-                            ))}
-                            {Object.values(entryTotals).every(c => c.main === 0) && "-"}
-                          </div>
-                        </td>
-                        <td className="text-center fw-bold" style={{ verticalAlign: "middle", borderTop: "2px solid #000" }}>
-                          <div style={{ display: "flex", flexDirection: "column", gap: "2px", alignItems: "center" }}>
-                            {Object.entries(entryTotals).map(([unit, counts], idx) => (
-                              counts.spare > 0 && (
-                                <div key={idx}>
-                                  {counts.spare} {unit}
-                                </div>
-                              )
-                            ))}
-                            {Object.values(entryTotals).every(c => c.spare === 0) && "-"}
-                          </div>
-                        </td>
-                      </tr>
+                      {/* Entry Total Removed as per request */}
                     </tbody>
                   );
                 })}
@@ -157,41 +126,60 @@ const PdfTemplate = ({ values, onReady }) => {
                 <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "center", marginBottom: "0" }}>
                   <thead>
                     <tr style={{ borderBottom: "2px solid #000", color: "#000" }}>
-                      <th style={{ padding: "10px", border: "1px solid #dee2e6" }}>Unit Type</th>
-                      <th style={{ padding: "10px", border: "1px solid #dee2e6" }}>Total Main Cable</th>
-                      <th style={{ padding: "10px", border: "1px solid #dee2e6" }}>Total Spare Cable</th>
+                      <th style={{ padding: "10px", border: "1px solid #dee2e6", width: "15%" }}>Item Code</th>
+                      <th style={{ padding: "10px", border: "1px solid #dee2e6", width: "45%" }}>Description</th>
+                      <th style={{ padding: "10px", border: "1px solid #dee2e6", width: "20%" }}>Total Main Cable</th>
+                      <th style={{ padding: "10px", border: "1px solid #dee2e6", width: "20%" }}>Total Spare Cable</th>
                     </tr>
                   </thead>
                   <tbody>
                     {(() => {
                       const totals = {};
+                      const order = [];
 
                       project.entries.forEach(entry => {
                         entry.descriptions.forEach(d => {
-                          const unit = d.unit || "Meter";
-                          if (!totals[unit]) totals[unit] = { main: 0, spare: 0 };
-                          totals[unit].main += parseQuantity(d.mainCableQty);
-                          totals[unit].spare += parseQuantity(d.spareCableQty);
+                          const key = d.itemCode;
+                          if (!totals[key]) {
+                            totals[key] = {
+                              itemCode: d.itemCode,
+                              desc: d.desc,
+                              unit: d.unit,
+                              main: 0,
+                              spare: 0
+                            };
+                            order.push(key);
+                          }
+                          totals[key].main += parseQuantity(d.mainCableQty);
+                          totals[key].spare += parseQuantity(d.spareCableQty);
                         });
                       });
 
-                      if (Object.values(totals).every(t => t.main === 0 && t.spare === 0)) {
+                      if (order.length === 0) {
                         return (
                           <tr>
-                            <td colSpan="3" style={{ padding: "15px", color: "#6c757d", border: "1px solid #dee2e6" }}>
+                            <td colSpan="4" style={{ padding: "15px", color: "#6c757d", border: "1px solid #dee2e6" }}>
                               No cable quantities added
                             </td>
                           </tr>
                         );
                       }
 
-                      return Object.entries(totals).map(([unit, t], idx) => (
-                        <tr key={idx}>
-                          <td style={{ padding: "10px", border: "1px solid #dee2e6", fontWeight: "600" }}>{unit}</td>
-                          <td style={{ padding: "10px", border: "1px solid #dee2e6" }}>{t.main > 0 ? `${t.main} ${unit}` : "-"}</td>
-                          <td style={{ padding: "10px", border: "1px solid #dee2e6" }}>{t.spare > 0 ? `${t.spare} ${unit}` : "-"}</td>
-                        </tr>
-                      ));
+                      return order.sort().map((key, idx) => {
+                        const item = totals[key];
+                        return (
+                          <tr key={idx}>
+                            <td style={{ padding: "10px", border: "1px solid #dee2e6" }}>{item.itemCode || "-"}</td>
+                            <td style={{ padding: "10px", border: "1px solid #dee2e6", textAlign: "left" }}>{item.desc}</td>
+                            <td style={{ padding: "10px", border: "1px solid #dee2e6" }}>
+                              {item.main > 0 ? `${item.main} ${item.unit && item.unit !== "Meter" ? item.unit : ""}` : "-"}
+                            </td>
+                            <td style={{ padding: "10px", border: "1px solid #dee2e6" }}>
+                              {item.spare > 0 ? `${item.spare} ${item.unit && item.unit !== "Meter" ? item.unit : ""}` : "-"}
+                            </td>
+                          </tr>
+                        )
+                      });
                     })()}
                   </tbody>
                 </table>

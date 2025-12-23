@@ -1,5 +1,7 @@
-import React, { useRef, useState } from "react";
-import { Formik, Form, Field, ErrorMessage } from "formik";
+import React, { useRef, useState, useEffect } from "react";
+import { supabase } from "./supabaseClient";
+import { toast, Toaster } from "react-hot-toast";
+import { Formik, Form, Field, ErrorMessage, useFormikContext } from "formik";
 import * as Yup from "yup";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -47,6 +49,15 @@ const UpperCaseField = ({ name, placeholder, as = "input", type = "text", ...pro
   </Field>
 );
 
+// Component to watch form changes and update local state
+const FormObserver = ({ onChange }) => {
+  const { values } = useFormikContext();
+  useEffect(() => {
+    onChange(values);
+  }, [values, onChange]);
+  return null;
+};
+
 const BillForm = () => {
   const pdfRef = useRef(null);
   const nameInputRef = useRef(null); // Ref for scrolling
@@ -57,6 +68,9 @@ const BillForm = () => {
   const [allProjects, setAllProjects] = useState([]); // ✅ Multiple project list
   const [isPdfReady, setIsPdfReady] = useState(false);
   const [isPdfMounted, setIsPdfMounted] = useState(false);
+  const [editingProjectId, setEditingProjectId] = useState(null); // Track which project is being edited in Supabase
+  const [view, setView] = useState("dashboard"); // 'dashboard' | 'form'
+  const [isSaving, setIsSaving] = useState(false); // Track save operation
 
   // Modal State for Project Name/Number
   const [modalProjectName, setModalProjectName] = useState("");
@@ -67,6 +81,9 @@ const BillForm = () => {
     projectNumber: "",
     entries: [],
   });
+
+  // Track form metadata (Work Order, PO, etc.) separately to save with project
+  const [formMetadata, setFormMetadata] = useState({});
 
   const [tempName, setTempName] = useState("");
   const [selectedDescriptions, setSelectedDescriptions] = useState([]);
@@ -92,10 +109,7 @@ const BillForm = () => {
     { id: 18, itemCode: "9925000047", desc: "Cable rising at DP structure" }
   ];
 
-
-
-
-  const initialValues = {
+  const defaultInitialValues = {
     name: "",
     dateOfCommunication: "",
     workOrderNumber: "",
@@ -110,25 +124,67 @@ const BillForm = () => {
     nameOfContractor: "J .K. Electrical Surat",
   };
 
-  // const validationSchema = Yup.object({
-  //   name: Yup.string().required("Required"),
-  //   dateOfCommunication: Yup.date().required("Required"),
-  //   workOrderNumber: Yup.string().required("Required"),
-  //   poNumber: Yup.string().required("Required"),
-  //   dueDateOfCommencement: Yup.date().required("Required"),
-  //   jwoNumber: Yup.string().required("Required"),
-  //   subDivision: Yup.string().required("Required"),
-  //   dueDateOfCompletionOfWork: Yup.date().required("Required"),
-  //   dateOfCompletion: Yup.date().nullable(),
-  //   nameOfWork: Yup.string().required("Required"),
-  //   timeLimitAsPerSubWorkOrder: Yup.string().required("Required"),
-  // });
+  // Use state for initial values to allow population when editing
+  const [initialValues, setInitialValues] = useState(defaultInitialValues);
 
-  // === PDF GENERATE ===
+  // === SUPABASE FETCH ===
+  const fetchProjects = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("projects")
+        .select("*")
+        .order("created_at", { ascending: true });
+
+      if (error) {
+        console.error("Error fetching projects:", error);
+        return;
+      }
+
+      // Map Supabase data to app structure
+      const formatted = (data || []).map((row) => {
+        // Handle both old format (array) and new format (object)
+        let entries = [];
+        let metadata = {};
+
+        if (Array.isArray(row.data)) {
+          entries = row.data;
+        } else if (row.data && typeof row.data === 'object') {
+          entries = row.data.entries || [];
+          metadata = row.data.formDetails || {};
+        }
+
+        return {
+          id: row.id,
+          projectName: row.name,
+          projectNumber: row.project_number,
+          entries: entries,
+          formDetails: metadata,
+        };
+      });
+
+      setAllProjects(formatted);
+    } catch (err) {
+      console.error("Unexpected error fetching projects:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchProjects();
+  }, []);
+
   // === PDF GENERATE ===
   const generatePDF = async (values) => {
     return new Promise((resolve) => {
-      const fullValues = { ...values, allProjects };
+      // Construct the current project object to allow downloading only the current one
+      const currentProject = {
+        id: editingProjectId || "new-temp-id",
+        projectName: modalProjectName || projectDetails.projectName || "New Project",
+        projectNumber: modalProjectNumber || projectDetails.projectNumber || "",
+        entries: projectDetails.entries,
+      };
+
+      // Pass ONLY the current project to the PDF template
+      const fullValues = { ...values, allProjects: [currentProject] };
       setFormValues(fullValues);
 
       // Make PdfTemplate render
@@ -138,7 +194,7 @@ const BillForm = () => {
       setTimeout(() => {
         const input = pdfRef.current;
         if (!input) {
-          alert("PDF content not ready!");
+          toast.error("PDF content not ready!");
           setIsPdfReady(false);
           resolve();
           return;
@@ -178,6 +234,7 @@ const BillForm = () => {
   const handleSubmit = async (values, { setSubmitting }) => {
     await generatePDF(values);
     setSubmitting(false);
+    toast.success("PDF Generated Successfully!");
   };
 
   const toggleDescription = (item) => {
@@ -215,9 +272,9 @@ const BillForm = () => {
   const handleAddOrUpdateEntry = () => {
     const name = tempName.trim();
 
-    if (!name) return alert("Please enter a name");
+    if (!name) return toast.error("Please enter a name");
     if (selectedDescriptions.length === 0)
-      return alert("Please select at least one description");
+      return toast.error("Please select at least one description");
 
     setProjectDetails((prev) => {
       const entries = [...prev.entries];
@@ -254,6 +311,7 @@ const BillForm = () => {
     setTempName(entry.name);
     setSelectedDescriptions(entry.descriptions);
     setActiveName(entry.name);
+    setShowModal(true);
 
     // Scroll to the input field
     setTimeout(() => {
@@ -261,7 +319,7 @@ const BillForm = () => {
         nameInputRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
         nameInputRef.current.focus();
       }
-    }, 100);
+    }, 300);
   };
 
   const handleRemoveName = (index) => {
@@ -286,403 +344,534 @@ const BillForm = () => {
     }));
   };
 
-  const handleProjectSave = () => {
+  const handleProjectSave = async () => {
     const pName = modalProjectName.trim();
     const pNumber = modalProjectNumber.trim();
 
     if (!pName || !pNumber) {
-      alert("Please fill both Project Name and Project Number");
+      toast.error("Please fill both Project Name and Project Number");
       return;
     }
 
     if (projectDetails.entries.length === 0) {
-      alert("Please add at least one entry before saving.");
+      toast.error("Please add at least one entry before saving.");
       return;
     }
 
-    const newProject = {
-      ...projectDetails,
-      projectName: pName,
-      projectNumber: pNumber,
+    // Prepare payload with entries AND form details
+    const payload = {
+      name: pName,
+      project_number: pNumber,
+      data: {
+        entries: projectDetails.entries,
+        formDetails: formMetadata // Save current form fields
+      },
     };
 
-    setAllProjects((prev) => [...prev, newProject]); // ✅ Add to all projects
-    // Reset
-    setProjectDetails({ projectName: "", projectNumber: "", entries: [] });
-    setModalProjectName("");
-    setModalProjectNumber("");
-    setShowModal(false);
+    setIsSaving(true); // Start loader
+
+    try {
+      if (editingProjectId) {
+        // Update existing project
+        const { error } = await supabase
+          .from("projects")
+          .update(payload)
+          .eq("id", editingProjectId);
+
+        if (error) throw error;
+        toast.success("Project updated successfully!");
+      } else {
+        // Insert new project
+        const { error } = await supabase.from("projects").insert([payload]);
+
+        if (error) throw error;
+        toast.success("Project saved to database!");
+      }
+
+      // Refresh list
+      await fetchProjects();
+
+      // Reset
+      setProjectDetails({ projectName: "", projectNumber: "", entries: [] });
+      setModalProjectName("");
+      setModalProjectNumber("");
+      setEditingProjectId(null);
+      setFormMetadata({}); // Clear metadata
+      setInitialValues(defaultInitialValues); // Reset form
+      setShowModal(false);
+      setView("dashboard"); // Go back to dashboard on save
+    } catch (error) {
+      console.error("Error saving project:", error);
+      toast.error("Error saving project: " + error.message);
+    } finally {
+      setIsSaving(false); // Stop loader
+    }
   };
 
+  const handleDeleteProject = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this project?")) return;
+    const toastId = toast.loading("Deleting project...");
+    try {
+      const { error } = await supabase.from("projects").delete().eq("id", id);
+      if (error) throw error;
+      await fetchProjects();
+      toast.success("Project deleted successfully!", { id: toastId });
+    } catch (error) {
+      console.error("Error deleting project:", error);
+      toast.error("Error deleting project: " + error.message, { id: toastId });
+    }
+  };
 
-  const handleDeleteProject = (index) => {
-    setAllProjects((prev) => prev.filter((_, i) => i !== index));
+  // === NAVIGATION HANDLERS ===
+  const handleAddNewProject = () => {
+    // Reset form for new entry
+    setFormValues(null);
+    setProjectDetails({ projectName: "", projectNumber: "", entries: [] });
+    // Reset Metadata & Form
+    setFormMetadata({});
+    setInitialValues(defaultInitialValues);
+
+    setModalProjectName("");
+    setModalProjectNumber("");
+    setEditingProjectId(null);
+    setView("form");
+  };
+
+  const handleBackToDashboard = () => {
+    setView("dashboard");
+  };
+
+  const handleEditProject = (project) => {
+    // Load project data into state for editing
+    setProjectDetails({
+      projectName: project.projectName, // Ensure match with supbase column mapping
+      projectNumber: project.projectNumber,
+      entries: project.entries,
+    });
+
+    // Load metadata into state
+    if (project.formDetails) {
+      setFormMetadata(project.formDetails);
+      setInitialValues({ ...defaultInitialValues, ...project.formDetails });
+    } else {
+      setFormMetadata({});
+      setInitialValues(defaultInitialValues);
+    }
+
+    setModalProjectName(project.projectName);
+    setModalProjectNumber(project.projectNumber);
+    setEditingProjectId(project.id);
+    setView("form");
   };
 
   return (
     <div style={{ position: "relative" }}>
-      {/* Main Content Wrapper - Occludes the hidden PDF */}
+      <Toaster position="top-right" reverseOrder={false} />
       <div style={{ position: "relative", zIndex: 5, backgroundColor: "#ffffff", minHeight: "100vh", padding: "1px 0" }}>
         <div className="container my-4">
-          <h2 className="text-center mb-4">Inventory Bill Form</h2>
 
-          {/* ===== Main Form ===== */}
-          <Formik
-            initialValues={initialValues}
-            // validationSchema={validationSchema}
-            onSubmit={handleSubmit}
-          >
-            {({ isSubmitting }) => (
-              <>
-                {isSubmitting && (
-                  <div className="loader-overlay">
-                    <Spinner animation="border" variant="light" style={{ width: "3rem", height: "3rem" }} />
-                    <h4>Generating PDF...</h4>
-                  </div>
-                )}
-                <Form className="p-3 border rounded bg-light shadow-sm">
-                  <div className="form-group mb-3">
-                    <label>Name:</label>
-                    <UpperCaseField name="name" />
-                    <ErrorMessage name="name" component="div" className="text-danger" />
-                  </div>
+          {/* === DASHBOARD VIEW === */}
+          {view === "dashboard" && (
+            <div>
+              <div className="d-flex justify-content-between align-items-center mb-4">
+                <h2 className="mb-0 fw-bold text-primary">📑 Project Dashboard</h2>
+                <Button variant="primary" onClick={handleAddNewProject} className="shadow-sm">
+                  <Plus size={18} className="me-1" /> Add New Project
+                </Button>
+              </div>
 
-                  <div className="form-group">
-                    <label>Date of Communication:</label>
-                    <Field type="date" name="dateOfCommunication" className="form-control" />
-                    <ErrorMessage
-                      name="dateOfCommunication"
-                      component="div"
-                      className="text-danger"
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label>Work Order Number:</label>
-                    <UpperCaseField name="workOrderNumber" />
-                    <ErrorMessage
-                      name="workOrderNumber"
-                      component="div"
-                      className="text-danger"
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label>P.O. No.:</label>
-                    <UpperCaseField name="poNumber" />
-                    <ErrorMessage
-                      name="poNumber"
-                      component="div"
-                      className="text-danger"
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label>Due Date of Commencement:</label>
-                    <Field type="date" name="dueDateOfCommencement" className="form-control" />
-                    <ErrorMessage
-                      name="dueDateOfCommencement"
-                      component="div"
-                      className="text-danger"
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label>J.W.O. No.:</label>
-                    <UpperCaseField name="jwoNumber" />
-                    <ErrorMessage
-                      name="jwoNumber"
-                      component="div"
-                      className="text-danger"
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label>Sub-Division:</label>
-                    <UpperCaseField name="subDivision" />
-                    <ErrorMessage
-                      name="subDivision"
-                      component="div"
-                      className="text-danger"
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label>Due Date of Completion of Work:</label>
-                    <Field type="date" name="dueDateOfCompletionOfWork" className="form-control" />
-                    <ErrorMessage
-                      name="dueDateOfCompletionOfWork"
-                      component="div"
-                      className="text-danger"
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label>Date of Completion:</label>
-                    <Field type="date" name="dateOfCompletion" className="form-control" />
-                  </div>
-
-                  <div className="form-group">
-                    <label>Name of Work:</label>
-                    <UpperCaseField name="nameOfWork" as="textarea" rows={3} />
-                    <ErrorMessage
-                      name="nameOfWork"
-                      component="div"
-                      className="text-danger"
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label>Time Limit as per Sub Work Order:</label>
-                    <Field name="timeLimitAsPerSubWorkOrder">
-                      {({ field, form }) => (
-                        <input
-                          {...field}
-                          type="text"
-                          className="form-control"
-                          onChange={(e) => {
-                            form.setFieldValue(
-                              "timeLimitAsPerSubWorkOrder",
-                              e.target.value.toUpperCase()
-                            );
-                          }}
-                          onBlur={(e) => {
-                            field.onBlur(e); // Handle standard Formik blur (touched state)
-                            const val = e.target.value.trim();
-                            // If there is a value and it doesn't already end with " DAYS", append it
-                            if (val && !val.endsWith(" DAYS")) {
-                              form.setFieldValue(
-                                "timeLimitAsPerSubWorkOrder",
-                                `${val} DAYS`
-                              );
-                            }
-                          }}
-                        />
-                      )}
-                    </Field>
-                    <ErrorMessage
-                      name="timeLimitAsPerSubWorkOrder"
-                      component="div"
-                      className="text-danger"
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label>Name of Contractor:</label>
-                    <Field
-                      type="text"
-                      name="nameOfContractor"
-                      readOnly
-                      className="form-control-plaintext"
-                    />
-                  </div>
-
-                  {/* Buttons */}
-                  <div className="d-flex justify-content-between mt-4">
-                    <Button
-                      variant="primary"
-                      onClick={() => {
-                        setTempName("");
-                        setSelectedDescriptions([]);
-                        setEditingIndex(null);
-                        setProjectDetails((prev) => ({ ...prev }));
-                        // Clear modal state inputs on open
-                        setModalProjectName("");
-                        setModalProjectNumber("");
-                        setShowModal(true);
-                      }}
-                    >
-                      ➕ Add Project
-                    </Button>
-                    <Button type="submit" variant="success" disabled={isSubmitting}>
-                      {isSubmitting ? "Generating PDF..." : "Submit & Download PDF"}
-                    </Button>
-                  </div>
-                </Form>
-              </>
-            )}
-          </Formik>
-
-          {/* ===== Project Table Display (Header + Table) ===== */}
-          {allProjects.length > 0 && (
-            <div className="mt-5">
-              <h5 className="text-secondary fw-bold mb-3">📋 Added Projects</h5>
-
-              {allProjects.map((project, projectIndex) => (
-                <div
-                  key={projectIndex}
-                  className="border rounded mb-4 shadow-sm bg-white overflow-hidden"
-                >
-                  {/* Project Header */}
-                  <div className="bg-primary text-white p-3">
-                    <h5 className="mb-0">
-                      <strong>{project.projectName}</strong>{" "}
-                      <span className="fw-light">({project.projectNumber})</span>
-                    </h5>
-                  </div>
-
-                  {/* Project Data Table */}
-                  <div className="p-3">
-                    {project.entries.length > 0 ? (
-                      <Table bordered hover responsive className="align-middle">
-                        <thead className="table-light text-center">
-                          <tr>
-                            <th style={{ width: "5%" }}>Name</th>
-                            <th style={{ width: "15%" }}>Item Code</th>
-                            <th style={{ width: "40%" }}>Description</th>
-                            <th style={{ width: "20%" }}>Main Cable</th>
-                            <th style={{ width: "20%" }}>Spare Cable</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {project.entries.map((entry, entryIndex) => {
-                            // Calculate totals for this entry
-                            const entryTotals = {};
-                            entry.descriptions.forEach((d) => {
-                              const unit = d.unit || "Meter";
-                              if (!entryTotals[unit]) entryTotals[unit] = { main: 0, spare: 0 };
-                              entryTotals[unit].main += parseQuantity(d.mainCableQty);
-                              entryTotals[unit].spare += parseQuantity(d.spareCableQty);
-                            });
-
-                            return (
-                              <React.Fragment key={entryIndex}>
-                                {entry.descriptions.map((d, i) => (
-                                  <tr key={`${entryIndex}-${i}`}>
-                                    {/* Only show name for first description */}
-                                    {i === 0 ? (
-                                      <td
-                                        rowSpan={entry.descriptions.length + 1}
-                                        className="fw-semibold align-middle bg-light vertical-name-cell"
-                                      >
-                                        {entry.name}
-                                      </td>
-                                    ) : null}
-
-                                    <td>{d.itemCode || "-"}</td>
-                                    <td>{d.desc}</td>
-                                    <td className="text-center">
-                                      {d.mainCableQty ? (d.unit && d.unit !== "Meter" ? `${d.mainCableQty} ${d.unit}` : d.mainCableQty) : "-"}
-                                    </td>
-                                    <td className="text-center">
-                                      {d.spareCableQty ? (d.unit && d.unit !== "Meter" ? `${d.spareCableQty} ${d.unit}` : d.spareCableQty) : "-"}
-                                    </td>
-                                  </tr>
-                                ))}
-                                {/* Entry Total Row */}
-                                <tr className="fw-bold">
-                                  <td colSpan="2" className="text-end align-middle">Total:</td>
-                                  <td className="text-center align-middle">
-                                    <div className="d-flex flex-column gap-1 align-items-center justify-content-center">
-                                      {Object.entries(entryTotals).map(([unit, counts], idx) => (
-                                        counts.main > 0 && (
-                                          <div key={idx}>
-                                            {counts.main} {unit}
-                                          </div>
-                                        )
-                                      ))}
-                                      {Object.values(entryTotals).every(c => c.main === 0) && "-"}
-                                    </div>
-                                  </td>
-                                  <td className="text-center align-middle">
-                                    <div className="d-flex flex-column gap-1 align-items-center justify-content-center">
-                                      {Object.entries(entryTotals).map(([unit, counts], idx) => (
-                                        counts.spare > 0 && (
-                                          <div key={idx}>
-                                            {counts.spare} {unit}
-                                          </div>
-                                        )
-                                      ))}
-                                      {Object.values(entryTotals).every(c => c.spare === 0) && "-"}
-                                    </div>
-                                  </td>
-                                </tr>
-                              </React.Fragment>
-                            );
-                          })}
-                        </tbody>
-                      </Table>
-                    ) : (
-                      <p className="text-muted fst-italic">No entries added.</p>
-                    )}
-
-
-                    <div className="mt-4 p-3 rounded border bg-white shadow-sm w-100">
-
-                      <h5 className="fw-bold text-primary mb-3">
-                        📌 Project Total for:
-                        <span className="text-dark ms-5">{project.projectName}</span>
-                        <span className="text-muted ms-2">({project.projectNumber})</span>
-                      </h5>
-
-                      <Table bordered responsive className="text-center w-100 mb-0">
-                        <thead className="bg-secondary text-white me-2">
-                          <tr>
-                            <th>Unit Type</th>
-                            <th>Total Main Cable</th>
-                            <th>Total Spare Cable</th>
-                          </tr>
-                        </thead>
-
-                        <tbody>
-                          {(() => {
-                            const totals = {};
-
-                            project.entries.forEach(entry => {
-                              entry.descriptions.forEach(d => {
-                                const unit = d.unit || "Meter";
-                                if (!totals[unit]) totals[unit] = { main: 0, spare: 0 };
-                                totals[unit].main += parseQuantity(d.mainCableQty);
-                                totals[unit].spare += parseQuantity(d.spareCableQty);
-                              });
-                            });
-
-                            if (Object.values(totals).every(t => t.main === 0 && t.spare === 0)) {
-                              return (
-                                <tr>
-                                  <td colSpan="3" className="text-muted py-3">
-                                    No cable quantities added
-                                  </td>
-                                </tr>
-                              );
-                            }
-
-                            return Object.entries(totals).map(([unit, t], idx) => (
-                              <tr key={idx}>
-                                <td className="fw-semibold">{unit}</td>
-                                <td>{t.main > 0 ? `${t.main} ${unit}` : "-"}</td>
-                                <td>{t.spare > 0 ? `${t.spare} ${unit}` : "-"}</td>
-                              </tr>
-                            ));
-                          })()}
-                        </tbody>
-                      </Table>
-                    </div>
-
-
-
-
-
-
-
-
-
-
-                    {/* Delete Project Button */}
-                    <div className="text-end mt-3">
-                      <Button
-                        variant="outline-danger"
-                        size="sm"
-                        onClick={() => handleDeleteProject(projectIndex)}
-                      >
-                        <Trash size={14} className="me-1" /> Delete Project
-                      </Button>
-                    </div>
-                  </div>
+              {allProjects.length === 0 ? (
+                <div className="text-center p-5 bg-light rounded border border-dashed">
+                  <h4 className="text-muted">No projects found</h4>
+                  <p className="text-secondary">Click "Add New Project" to get started.</p>
                 </div>
-              ))}
+              ) : (
+                <div className="row g-3">
+                  {allProjects.map((project) => (
+                    <div key={project.id} className="col-md-6 col-lg-4">
+                      <div className="card h-100 shadow-sm border-0 hover-shadow">
+                        <div className="card-body">
+                          <h5 className="card-title fw-bold text-dark">{project.projectName}</h5>
+                          <h6 className="card-subtitle mb-2 text-muted">{project.projectNumber}</h6>
+                          <p className="card-text text-secondary">{project.entries.length} Location Entries</p>
+                        </div>
+                        <div className="card-footer bg-white border-0 d-flex justify-content-between">
+                          <small className="text-muted">ID: {project.id.slice(0, 8)}...</small>
+                          <div>
+                            <Button
+                              variant="outline-primary"
+                              size="sm"
+                              className="me-2"
+                              onClick={() => handleEditProject(project)}
+                            >
+                              <Pencil size={14} />
+                            </Button>
+                            <Button
+                              variant="outline-danger"
+                              size="sm"
+                              onClick={() => handleDeleteProject(project.id)}
+                            >
+                              <Trash size={14} />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
+
+
+          {/* === FORM VIEW === */}
+          {view === "form" && (
+            <div>
+              <div className="d-flex align-items-center mb-4">
+                <Button variant="outline-secondary" className="me-3 border-0" onClick={handleBackToDashboard}>
+                  &larr; Back to Dashboard
+                </Button>
+                <h3 className="mb-0 fw-bold">{editingProjectId ? `Edit Project: ${projectDetails.projectName}` : "New Bill Form"}</h3>
+              </div>
+
+              {/* ===== Main Form ===== */}
+              <Formik
+                enableReinitialize={true} // Allow initialValues to update when state changes
+                initialValues={initialValues}
+                // validationSchema={validationSchema}
+                onSubmit={handleSubmit}
+              >
+                {({ isSubmitting }) => (
+                  <>
+                    <FormObserver onChange={setFormMetadata} />
+                    {/* Reuse existing loader overlay style for consistency */}
+                    {(isSubmitting || isSaving) && (
+                      <div className="loader-overlay">
+                        <Spinner animation="border" variant="light" style={{ width: "3rem", height: "3rem" }} />
+                        <h4>{isSaving ? "Saving Project..." : "Generating PDF..."}</h4>
+                      </div>
+                    )}
+                    <Form className="p-4 border rounded bg-white shadow-sm">
+                      <Row>
+                        <Col md={6}>
+                          <div className="form-group mb-3">
+                            <label>Name:</label>
+                            <UpperCaseField name="name" />
+                            <ErrorMessage name="name" component="div" className="text-danger" />
+                          </div>
+                        </Col>
+                        <Col md={6}>
+                          <div className="form-group mb-3">
+                            <label>Date of Communication:</label>
+                            <Field type="date" name="dateOfCommunication" className="form-control" />
+                          </div>
+                        </Col>
+                      </Row>
+
+                      <Row>
+                        <Col md={6}>
+                          <div className="form-group mb-3">
+                            <label>Work Order Number:</label>
+                            <UpperCaseField name="workOrderNumber" />
+                          </div>
+                        </Col>
+                        <Col md={6}>
+                          <div className="form-group mb-3">
+                            <label>P.O. No.:</label>
+                            <UpperCaseField name="poNumber" />
+                          </div>
+                        </Col>
+                      </Row>
+
+                      <Row>
+                        <Col md={6}>
+                          <div className="form-group mb-3">
+                            <label>Due Date of Commencement:</label>
+                            <Field type="date" name="dueDateOfCommencement" className="form-control" />
+                          </div>
+                        </Col>
+                        <Col md={6}>
+                          <div className="form-group mb-3">
+                            <label>J.W.O. No.:</label>
+                            <UpperCaseField name="jwoNumber" />
+                          </div>
+                        </Col>
+                      </Row>
+
+                      <Row>
+                        <Col md={6}>
+                          <div className="form-group mb-3">
+                            <label>Sub-Division:</label>
+                            <UpperCaseField name="subDivision" />
+                          </div>
+                        </Col>
+                        <Col md={6}>
+                          <div className="form-group mb-3">
+                            <label>Due Date of Completion of Work:</label>
+                            <Field type="date" name="dueDateOfCompletionOfWork" className="form-control" />
+                          </div>
+                        </Col>
+                      </Row>
+
+                      <Row>
+                        <Col md={6}>
+                          <div className="form-group mb-3">
+                            <label>Date of Completion:</label>
+                            <Field type="date" name="dateOfCompletion" className="form-control" />
+                          </div>
+                        </Col>
+                        <Col md={6}>
+                          <div className="form-group mb-3">
+                            <label>Name of Contractor:</label>
+                            <Field
+                              type="text"
+                              name="nameOfContractor"
+                              readOnly
+                              className="form-control-plaintext fw-bold"
+                            />
+                          </div>
+                        </Col>
+                      </Row>
+
+                      <div className="form-group mb-3">
+                        <label>Name of Work:</label>
+                        <UpperCaseField name="nameOfWork" as="textarea" rows={3} />
+                      </div>
+
+                      <div className="form-group mb-3">
+                        <label>Time Limit as per Sub Work Order:</label>
+                        <Field name="timeLimitAsPerSubWorkOrder">
+                          {({ field, form }) => (
+                            <input
+                              {...field}
+                              type="text"
+                              className="form-control"
+                              onChange={(e) => {
+                                form.setFieldValue(
+                                  "timeLimitAsPerSubWorkOrder",
+                                  e.target.value.toUpperCase()
+                                );
+                              }}
+                              onBlur={(e) => {
+                                field.onBlur(e);
+                                const val = e.target.value.trim();
+                                if (val && !val.endsWith(" DAYS")) {
+                                  form.setFieldValue(
+                                    "timeLimitAsPerSubWorkOrder",
+                                    `${val} DAYS`
+                                  );
+                                }
+                              }}
+                            />
+                          )}
+                        </Field>
+                      </div>
+
+                      {/* Buttons */}
+                      <div className="d-flex justify-content-between mt-4 pt-3 border-top">
+                        <Button
+                          variant="outline-primary"
+                          onClick={() => {
+                            setTempName("");
+                            setSelectedDescriptions([]);
+                            setEditingIndex(null);
+                            setProjectDetails((prev) => ({ ...prev }));
+                            setShowModal(true);
+                          }}
+                        >
+                          ➕ Add/Edit Entries
+                        </Button>
+
+                        <Button type="submit" variant="success" disabled={isSubmitting}>
+                          {isSubmitting ? "Generating PDF..." : "Submit & Download PDF"}
+                        </Button>
+                      </div>
+                    </Form>
+                  </>
+                )}
+              </Formik>
+
+              {/* ===== Current Project Entries Display ===== */}
+              {/* This shows the entries for the project curently being edited/created */}
+              <div className="mt-5">
+                {projectDetails.entries.length > 0 && (
+                  <div className="d-flex justify-content-between align-items-center mb-3">
+                    <h5 className="text-secondary fw-bold mb-0">📋 Entries for: {projectDetails.projectName || "New Project"}</h5>
+                    <Button
+                      variant="outline-primary"
+                      onClick={() => setShowModal(true)}
+                      className="shadow-sm"
+                      title="Edit Project Details"
+                    >
+                      <Pencil size={18} />
+                    </Button>
+                  </div>
+                )}
+
+                {projectDetails.entries.length > 0 ? (
+                  <div className="border rounded shadow-sm bg-white overflow-hidden">
+                    <Table bordered hover responsive className="align-middle mb-0">
+                      <thead className="table-light text-center">
+                        <tr>
+                          <th style={{ width: "5%" }}>Location Name</th>
+                          <th style={{ width: "15%" }}>Item Code</th>
+                          <th style={{ width: "40%" }}>Description</th>
+                          <th style={{ width: "20%" }}>Main Cable</th>
+                          <th style={{ width: "20%" }}>Spare Cable</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {projectDetails.entries.map((entry, entryIndex) => {
+                          // Copied logic for totals
+                          const entryTotals = {};
+                          const item4 = entry.descriptions.find(d => d.itemCode === "9925000007");
+                          const item5 = entry.descriptions.find(d => d.itemCode === "9925000009");
+
+                          if (item4 && item5) {
+                            const unit = item4.unit || "Meter";
+                            if (!entryTotals[unit]) entryTotals[unit] = { main: 0, spare: 0 };
+                            entryTotals[unit].main += Math.max(parseQuantity(item4.mainCableQty), parseQuantity(item5.mainCableQty));
+                            entryTotals[unit].spare += Math.max(parseQuantity(item4.spareCableQty), parseQuantity(item5.spareCableQty));
+                          }
+
+                          entry.descriptions.forEach((d) => {
+                            if (item4 && item5 && (d.itemCode === "9925000007" || d.itemCode === "9925000009")) return;
+                            const unit = d.unit || "Meter";
+                            if (!entryTotals[unit]) entryTotals[unit] = { main: 0, spare: 0 };
+                            entryTotals[unit].main += parseQuantity(d.mainCableQty);
+                            entryTotals[unit].spare += parseQuantity(d.spareCableQty);
+                          });
+
+                          return (
+                            <React.Fragment key={entryIndex}>
+                              {entry.descriptions.map((d, i) => (
+                                <tr key={`${entryIndex}-${i}`}>
+                                  {i === 0 ? (
+                                    <td
+                                      rowSpan={entry.descriptions.length + 1}
+                                      className="fw-semibold align-middle bg-light vertical-name-cell"
+                                    >
+                                      {entry.name}
+                                      <div className="mt-2 no-print">
+                                        <Button size="sm" variant="link" className="p-0 me-2" onClick={() => handleEditEntry(entryIndex)}>✎</Button>
+                                        <Button size="sm" variant="link" className="p-0 text-danger" onClick={() => handleRemoveName(entryIndex)}>✕</Button>
+                                      </div>
+                                    </td>
+                                  ) : null}
+
+                                  <td>{d.itemCode || "-"}</td>
+                                  <td>{d.desc}</td>
+                                  <td className="text-center">
+                                    {d.mainCableQty ? (d.unit && d.unit !== "Meter" ? `${d.mainCableQty} ${d.unit}` : d.mainCableQty) : "-"}
+                                  </td>
+                                  <td className="text-center">
+                                    {d.spareCableQty ? (d.unit && d.unit !== "Meter" ? `${d.spareCableQty} ${d.unit}` : d.spareCableQty) : "-"}
+                                  </td>
+                                </tr>
+                              ))}
+                              <tr className="fw-bold">
+                                <td colSpan="2" className="text-end align-middle">Total:</td>
+                                <td className="text-center align-middle">
+                                  <div className="d-flex flex-column gap-1 align-items-center justify-content-center">
+                                    {Object.entries(entryTotals).map(([unit, counts], idx) => (
+                                      counts.main > 0 && <div key={idx}>{counts.main} {unit}</div>
+                                    ))}
+                                  </div>
+                                </td>
+                                <td className="text-center align-middle">
+                                  <div className="d-flex flex-column gap-1 align-items-center justify-content-center">
+                                    {Object.entries(entryTotals).map(([unit, counts], idx) => (
+                                      counts.spare > 0 && <div key={idx}>{counts.spare} {unit}</div>
+                                    ))}
+                                  </div>
+                                </td>
+                              </tr>
+                            </React.Fragment>
+                          );
+                        })}
+                      </tbody>
+                    </Table>
+                  </div>
+                ) : (
+                  <p className="text-muted fst-italic p-4 border rounded bg-white text-center">No entries added to this project yet.</p>
+                )}
+
+                {/* ===== Project Totals (Description-wise) ===== */}
+                {projectDetails.entries.length > 0 && (
+                  <div className="mt-4 border rounded shadow-sm bg-white overflow-hidden">
+                    <div className="bg-light px-3 py-2 border-bottom">
+                      <h6 className="fw-bold mb-0 text-primary">📊 Project Totals (Description-wise)</h6>
+                    </div>
+                    <Table bordered hover responsive className="align-middle mb-0">
+                      <thead className="table-light text-center">
+                        <tr>
+                          <th style={{ width: "15%" }}>Item Code</th>
+                          <th style={{ width: "45%" }}>Description</th>
+                          <th style={{ width: "20%" }}>Total Main Cable</th>
+                          <th style={{ width: "20%" }}>Total Spare Cable</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(() => {
+                          // Calculate totals
+                          const totals = {};
+                          // Order to maintain consistent display order based on itemCode/description
+                          const order = [];
+
+                          projectDetails.entries.forEach(entry => {
+                            entry.descriptions.forEach(d => {
+                              const key = d.itemCode; // Use itemCode as unique key
+                              if (!totals[key]) {
+                                totals[key] = {
+                                  itemCode: d.itemCode,
+                                  desc: d.desc,
+                                  unit: d.unit,
+                                  main: 0,
+                                  spare: 0
+                                };
+                                order.push(key);
+                              }
+                              totals[key].main += parseQuantity(d.mainCableQty);
+                              totals[key].spare += parseQuantity(d.spareCableQty);
+                            });
+                          });
+
+                          if (order.length === 0) return <tr><td colSpan="4" className="text-center text-muted">No items to total.</td></tr>;
+
+                          return order.sort().map(key => {
+                            const item = totals[key];
+                            return (
+                              <tr key={key}>
+                                <td>{item.itemCode || "-"}</td>
+                                <td>{item.desc}</td>
+                                <td className="text-center fw-semibold">
+                                  {item.main > 0 ? `${item.main} ${item.unit && item.unit !== "Meter" ? item.unit : ""}` : "-"}
+                                </td>
+                                <td className="text-center fw-semibold">
+                                  {item.spare > 0 ? `${item.spare} ${item.unit && item.unit !== "Meter" ? item.unit : ""}` : "-"}
+                                </td>
+                              </tr>
+                            );
+                          });
+                        })()}
+                      </tbody>
+                    </Table>
+                  </div>
+                )}
+
+                <div className="d-flex justify-content-end mt-3">
+                  <Button
+                    variant="dark"
+                    onClick={handleProjectSave}
+                    className="shadow px-4"
+                  >
+                    <Save size={18} className="me-2" /> {editingProjectId ? "Update Project" : "Save Project"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
         </div>
       </div>
 
@@ -736,9 +925,9 @@ const BillForm = () => {
             </Row>
 
             <hr />
-            <h5 className="mb-3 text-secondary">Add Name & Description</h5>
+            <h5 className="mb-3 text-secondary">Add Location Name & Description</h5>
 
-            <BootstrapForm.Label>Name:</BootstrapForm.Label>
+            <BootstrapForm.Label>Location Name:</BootstrapForm.Label>
             <BootstrapForm.Control
               type="text"
               ref={nameInputRef} // Attach ref
@@ -772,7 +961,6 @@ const BillForm = () => {
                     <span className="flex-grow-1">{item.desc}</span>
                   </Dropdown.Item>
                 ))}
-
               </Dropdown.Menu>
             </Dropdown>
 
@@ -875,7 +1063,6 @@ const BillForm = () => {
                           size="sm"
                           style={{ marginRight: '8px' }}
                           onClick={() => handleEditEntry(index)}
-                          disabled={false} // Explicitly enabled
                         >
                           <Pencil size={14} className="me-1" /> Edit
                         </Button>
@@ -883,7 +1070,6 @@ const BillForm = () => {
                           variant="outline-danger"
                           size="sm"
                           onClick={() => handleRemoveName(index)}
-                          disabled={false} // Explicitly enabled
                         >
                           <Trash size={14} className="me-1" /> Remove
                         </Button>
@@ -908,7 +1094,6 @@ const BillForm = () => {
                           variant="outline-danger"
                           size="sm"
                           onClick={() => handleRemoveDescription(entry.name, d.desc)}
-                          disabled={false} // Explicitly enabled
                         >
                           <X size={14} />
                         </Button>
@@ -920,17 +1105,12 @@ const BillForm = () => {
             )}
           </BootstrapForm>
         </Modal.Body>
-
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowModal(false)}>
-            Close
-          </Button>
-          <Button variant="success" onClick={handleProjectSave}>
-            <Save size={16} className="me-2" /> Save Project
-          </Button>
+          <Button variant="secondary" onClick={() => setShowModal(false)}>Close</Button>
         </Modal.Footer>
       </Modal>
-    </div >
+
+    </div>
   );
 };
 
