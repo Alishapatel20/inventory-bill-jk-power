@@ -408,17 +408,30 @@ const BillForm = () => {
     }
   };
 
-  const handleDeleteProject = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this project?")) return;
+  // Delete Modal State
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteProjectId, setDeleteProjectId] = useState(null);
+
+  const handleDeleteProject = (id) => {
+    setDeleteProjectId(id);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteProject = async () => {
+    if (!deleteProjectId) return;
+
     const toastId = toast.loading("Deleting project...");
     try {
-      const { error } = await supabase.from("projects").delete().eq("id", id);
+      const { error } = await supabase.from("projects").delete().eq("id", deleteProjectId);
       if (error) throw error;
       await fetchProjects();
       toast.success("Project deleted successfully!", { id: toastId });
     } catch (error) {
       console.error("Error deleting project:", error);
       toast.error("Error deleting project: " + error.message, { id: toastId });
+    } finally {
+      setShowDeleteModal(false);
+      setDeleteProjectId(null);
     }
   };
 
@@ -1107,6 +1120,24 @@ const BillForm = () => {
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowModal(false)}>Close</Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* === DELETE CONFIRMATION MODAL === */}
+      <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title className="text-danger">Confirm Deletion</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p>Are you sure you want to delete this project? This action cannot be undone.</p>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
+            Cancel
+          </Button>
+          <Button variant="danger" onClick={confirmDeleteProject}>
+            Delete Project
+          </Button>
         </Modal.Footer>
       </Modal>
 
