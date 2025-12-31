@@ -69,51 +69,49 @@ const PdfTemplate = ({ values, onReady }) => {
                 <span>#{project.projectNumber}</span>
               </div>
 
-              <table className="project-table">
-                <thead>
-                  <tr>
-                    <th style={{ width: "18%" }}>Location Name</th>
-                    <th style={{ width: "15%" }}>Item Code</th>
-                    <th>Description</th>
-                    <th style={{ width: "12%" }}>Main Cable</th>
-                    <th style={{ width: "12%" }}>Spare Cable</th>
-                  </tr>
-                </thead>
-                {project.entries.map((entry, eIndex) => {
-                  entry.descriptions.forEach((d) => {
-                    // No complex unit aggregation for totals anymore
-                  });
-
-                  return (
-                    <tbody key={eIndex} className="entry-group">
+              {project.entries.map((entry, eIndex) => (
+                <div key={eIndex} style={{ marginBottom: "20px", pageBreakInside: "avoid", breakInside: "avoid" }}>
+                  <table className="project-table" style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <thead>
+                      {/* Location Header Row - Moved inside table to fix double border issue */}
+                      <tr>
+                        <th colSpan="4" style={{
+                          backgroundColor: "#444",
+                          color: "white",
+                          padding: "8px 12px",
+                          fontWeight: "bold",
+                          fontSize: "14px",
+                          border: "2px solid #333",
+                          textAlign: "left"
+                        }}>
+                          {entry.name}
+                        </th>
+                      </tr>
+                      {/* Column Headers */}
+                      <tr>
+                        <th style={{ width: "20%", border: "2px solid #333", background: "#f1f1f1", padding: "8px" }}>Item Code</th>
+                        <th style={{ border: "2px solid #333", background: "#f1f1f1", padding: "8px" }}>Description</th>
+                        <th style={{ width: "15%", border: "2px solid #333", background: "#f1f1f1", padding: "8px" }}>Main Cable</th>
+                        <th style={{ width: "15%", border: "2px solid #333", background: "#f1f1f1", padding: "8px" }}>Spare Cable</th>
+                      </tr>
+                    </thead>
+                    <tbody>
                       {entry.descriptions.map((d, i) => (
                         <tr key={i}>
-                          {i === 0 && (
-                            <td
-                              rowSpan={entry.descriptions.length + 1}
-                              className="left-name-cell"
-                            >
-                              {entry.name}
-                            </td>
-                          )}
-                          <td>{d.itemCode}</td>
-                          <td>{d.desc}</td>
-                          <>
-                            <td>
-                              {d.mainCableQty ? `${d.mainCableQty} ${d.unit && d.unit !== "Meter" ? d.unit.toLowerCase() : ""}` : "-"}
-                            </td>
-                            <td>
-                              {d.spareCableQty ? `${d.spareCableQty} ${d.unit && d.unit !== "Meter" ? d.unit.toLowerCase() : ""}` : "-"}
-                            </td>
-                          </>
+                          <td style={{ border: "1px solid #333", padding: "6px" }}>{d.itemCode}</td>
+                          <td style={{ border: "1px solid #333", padding: "6px", textAlign: "left" }}>{d.desc}</td>
+                          <td style={{ border: "1px solid #333", padding: "6px", textAlign: "center" }}>
+                            {d.mainCableQty ? `${d.mainCableQty} ${d.unit && d.unit !== "Meter" ? d.unit.toLowerCase() : ""}` : "-"}
+                          </td>
+                          <td style={{ border: "1px solid #333", padding: "6px", textAlign: "center" }}>
+                            {d.spareCableQty ? `${d.spareCableQty} ${d.unit && d.unit !== "Meter" ? d.unit.toLowerCase() : ""}` : "-"}
+                          </td>
                         </tr>
                       ))}
-
-                      {/* Entry Total Removed as per request */}
                     </tbody>
-                  );
-                })}
-              </table>
+                  </table>
+                </div>
+              ))}
 
               {/* Project Grand Total - Separate Table matching Live View (Black & White) */}
               <div style={{ marginTop: "5px", padding: "15px 15px 30px 15px", border: "1px solid #dee2e6", borderRadius: "5px", backgroundColor: "#fff" }}>
@@ -126,10 +124,10 @@ const PdfTemplate = ({ values, onReady }) => {
                 <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "center", marginBottom: "0" }}>
                   <thead>
                     <tr style={{ borderBottom: "2px solid #000", color: "#000" }}>
-                      <th style={{ padding: "10px", border: "1px solid #dee2e6", width: "15%" }}>Item Code</th>
-                      <th style={{ padding: "10px", border: "1px solid #dee2e6", width: "45%" }}>Description</th>
-                      <th style={{ padding: "10px", border: "1px solid #dee2e6", width: "20%" }}>Total Main Cable</th>
-                      <th style={{ padding: "10px", border: "1px solid #dee2e6", width: "20%" }}>Total Spare Cable</th>
+                      <th style={{ padding: "10px", border: "2px solid #333", width: "15%" }}>Item Code</th>
+                      <th style={{ padding: "10px", border: "2px solid #333", width: "45%" }}>Description</th>
+                      <th style={{ padding: "10px", border: "2px solid #333", width: "20%" }}>Total Main Cable</th>
+                      <th style={{ padding: "10px", border: "2px solid #333", width: "20%" }}>Total Spare Cable</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -139,7 +137,7 @@ const PdfTemplate = ({ values, onReady }) => {
 
                       project.entries.forEach(entry => {
                         entry.descriptions.forEach(d => {
-                          const key = d.itemCode;
+                          const key = `${d.itemCode}_${d.desc}`;
                           if (!totals[key]) {
                             totals[key] = {
                               itemCode: d.itemCode,
@@ -169,12 +167,12 @@ const PdfTemplate = ({ values, onReady }) => {
                         const item = totals[key];
                         return (
                           <tr key={idx}>
-                            <td style={{ padding: "10px", border: "1px solid #dee2e6" }}>{item.itemCode || "-"}</td>
-                            <td style={{ padding: "10px", border: "1px solid #dee2e6", textAlign: "left" }}>{item.desc}</td>
-                            <td style={{ padding: "10px", border: "1px solid #dee2e6" }}>
+                            <td style={{ padding: "10px", border: "1px solid #333" }}>{item.itemCode || "-"}</td>
+                            <td style={{ padding: "10px", border: "1px solid #333", textAlign: "left" }}>{item.desc}</td>
+                            <td style={{ padding: "10px", border: "1px solid #333" }}>
                               {item.main > 0 ? `${item.main} ${item.unit && item.unit !== "Meter" ? item.unit : ""}` : "-"}
                             </td>
-                            <td style={{ padding: "10px", border: "1px solid #dee2e6" }}>
+                            <td style={{ padding: "10px", border: "1px solid #333" }}>
                               {item.spare > 0 ? `${item.spare} ${item.unit && item.unit !== "Meter" ? item.unit : ""}` : "-"}
                             </td>
                           </tr>
@@ -186,6 +184,80 @@ const PdfTemplate = ({ values, onReady }) => {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* ===== GRAND TOTAL (DESCRIPTION-WISE) ===== */}
+      {allProjects.length > 0 && (
+        <div style={{ padding: "15px 15px 30px 15px", border: "1px solid #dee2e6", borderRadius: "5px", backgroundColor: "#fff", marginTop: "20px" }}>
+          <h5 style={{ color: "#000", fontWeight: "bold", marginBottom: "25px", marginTop: "0", textAlign: "center", textTransform: "uppercase" }}>
+            Grand Total (Description-wise)
+          </h5>
+
+          <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "center", marginBottom: "0" }}>
+            <thead>
+              <tr style={{ borderBottom: "2px solid #000", color: "#000" }}>
+                <th style={{ padding: "10px", border: "2px solid #333", width: "15%" }}>Item Code</th>
+                <th style={{ padding: "10px", border: "2px solid #333", width: "45%" }}>Description</th>
+                <th style={{ padding: "10px", border: "2px solid #333", width: "20%" }}>Total Main Cable</th>
+                <th style={{ padding: "10px", border: "2px solid #333", width: "20%" }}>Total Spare Cable</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(() => {
+                const grandTotals = {};
+                const order = [];
+
+                allProjects.forEach(proj => {
+                  proj.entries.forEach(entry => {
+                    entry.descriptions.forEach(d => {
+                      // Same composite key logic as per previous fix: Item Code + Description
+                      const key = `${d.itemCode}_${d.desc}`;
+
+                      if (!grandTotals[key]) {
+                        grandTotals[key] = {
+                          itemCode: d.itemCode,
+                          desc: d.desc,
+                          unit: d.unit,
+                          main: 0,
+                          spare: 0
+                        };
+                        order.push(key);
+                      }
+                      grandTotals[key].main += parseQuantity(d.mainCableQty);
+                      grandTotals[key].spare += parseQuantity(d.spareCableQty);
+                    });
+                  });
+                });
+
+                if (order.length === 0) {
+                  return (
+                    <tr>
+                      <td colSpan="4" style={{ padding: "15px", color: "#6c757d", border: "1px solid #dee2e6" }}>
+                        No items found across projects
+                      </td>
+                    </tr>
+                  );
+                }
+
+                return order.sort().map((key, idx) => {
+                  const item = grandTotals[key];
+                  return (
+                    <tr key={idx}>
+                      <td style={{ padding: "10px", border: "1px solid #333" }}>{item.itemCode || "-"}</td>
+                      <td style={{ padding: "10px", border: "1px solid #333", textAlign: "left" }}>{item.desc}</td>
+                      <td style={{ padding: "10px", border: "1px solid #333" }}>
+                        {item.main > 0 ? `${item.main} ${item.unit && item.unit !== "Meter" ? item.unit : ""}` : "-"}
+                      </td>
+                      <td style={{ padding: "10px", border: "1px solid #333" }}>
+                        {item.spare > 0 ? `${item.spare} ${item.unit && item.unit !== "Meter" ? item.unit : ""}` : "-"}
+                      </td>
+                    </tr>
+                  )
+                });
+              })()}
+            </tbody>
+          </table>
         </div>
       )}
     </div>

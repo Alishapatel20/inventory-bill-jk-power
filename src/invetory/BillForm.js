@@ -183,8 +183,21 @@ const BillForm = () => {
         entries: projectDetails.entries,
       };
 
-      // Pass ONLY the current project to the PDF template
-      const fullValues = { ...values, allProjects: [currentProject] };
+      // We need to merge the current project into the allProjects list if it's being edited/created
+      let pdfProjects = [...allProjects];
+
+      if (editingProjectId) {
+        // If editing, find and replace the project in the list with current state
+        pdfProjects = pdfProjects.map(p => p.id === editingProjectId ? currentProject : p);
+      } else if (projectDetails.entries.length > 0) {
+        // If new and has entries, append it (or just use it if list is empty)
+        // Check if it's already there to prevent duplicates if user clicked multiple times
+        // For 'New Project', we might just append it temporarily for the PDF
+        pdfProjects = [...pdfProjects, currentProject];
+      }
+
+      // Pass ALL projects to the PDF template
+      const fullValues = { ...values, allProjects: pdfProjects };
       setFormValues(fullValues);
 
       // Make PdfTemplate render
@@ -723,75 +736,74 @@ const BillForm = () => {
 
                 {projectDetails.entries.length > 0 ? (
                   <div className="border rounded shadow-sm bg-white overflow-hidden">
-                    <Table bordered hover responsive className="align-middle mb-0">
-                      <thead className="table-light text-center">
-                        <tr>
-                          <th style={{ width: "5%" }}>Location Name</th>
-                          <th style={{ width: "15%" }}>Item Code</th>
-                          <th style={{ width: "40%" }}>Description</th>
-                          <th style={{ width: "20%" }}>Main Cable</th>
-                          <th style={{ width: "20%" }}>Spare Cable</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {projectDetails.entries.map((entry, entryIndex) => {
-                          // Copied logic for totals
-                          const entryTotals = {};
-                          const item4 = entry.descriptions.find(d => d.itemCode === "9925000007");
-                          const item5 = entry.descriptions.find(d => d.itemCode === "9925000009");
+                    {projectDetails.entries.map((entry, entryIndex) => {
+                      // Totals calculation for this specific entry
+                      const entryTotals = {};
+                      const item4 = entry.descriptions.find(d => d.itemCode === "9925000007");
+                      const item5 = entry.descriptions.find(d => d.itemCode === "9925000009");
 
-                          if (item4 && item5) {
-                            const unit = item4.unit || "Meter";
-                            if (!entryTotals[unit]) entryTotals[unit] = { main: 0, spare: 0 };
-                            entryTotals[unit].main += Math.max(parseQuantity(item4.mainCableQty), parseQuantity(item5.mainCableQty));
-                            entryTotals[unit].spare += Math.max(parseQuantity(item4.spareCableQty), parseQuantity(item5.spareCableQty));
-                          }
+                      if (item4 && item5) {
+                        const unit = item4.unit || "Meter";
+                        if (!entryTotals[unit]) entryTotals[unit] = { main: 0, spare: 0 };
+                        entryTotals[unit].main += Math.max(parseQuantity(item4.mainCableQty), parseQuantity(item5.mainCableQty));
+                        entryTotals[unit].spare += Math.max(parseQuantity(item4.spareCableQty), parseQuantity(item5.spareCableQty));
+                      }
 
-                          entry.descriptions.forEach((d) => {
-                            if (item4 && item5 && (d.itemCode === "9925000007" || d.itemCode === "9925000009")) return;
-                            const unit = d.unit || "Meter";
-                            if (!entryTotals[unit]) entryTotals[unit] = { main: 0, spare: 0 };
-                            entryTotals[unit].main += parseQuantity(d.mainCableQty);
-                            entryTotals[unit].spare += parseQuantity(d.spareCableQty);
-                          });
+                      entry.descriptions.forEach((d) => {
+                        if (item4 && item5 && (d.itemCode === "9925000007" || d.itemCode === "9925000009")) return;
+                        const unit = d.unit || "Meter";
+                        if (!entryTotals[unit]) entryTotals[unit] = { main: 0, spare: 0 };
+                        entryTotals[unit].main += parseQuantity(d.mainCableQty);
+                        entryTotals[unit].spare += parseQuantity(d.spareCableQty);
+                      });
 
-                          return (
-                            <React.Fragment key={entryIndex}>
+                      return (
+                        <div key={entryIndex} className="mb-5 shadow-sm border p-3 rounded bg-white">
+                          {/* Location Name Header */}
+                          <div
+                            className="d-flex justify-content-between align-items-center p-2 mb-2 rounded"
+                            style={{ backgroundColor: "#495057", color: "white", border: "2px solid #333" }}
+                          >
+                            <h5 className="mb-0 fw-bold ps-2">{entry.name}</h5>
+                            <div className="no-print">
+                              <Button size="sm" variant="light" className="me-2" onClick={() => handleEditEntry(entryIndex)}>✎ Edit</Button>
+                              <Button size="sm" variant="danger" onClick={() => handleRemoveName(entryIndex)}>✕ Remove</Button>
+                            </div>
+                          </div>
+
+                          <Table bordered hover responsive className="align-middle mb-0">
+                            <thead className="table-light text-center">
+                              <tr>
+                                <th style={{ width: "20%", border: "2px solid #333" }}>Item Code</th>
+                                <th style={{ width: "40%", border: "2px solid #333" }}>Description</th>
+                                <th style={{ width: "20%", border: "2px solid #333" }}>Main Cable</th>
+                                <th style={{ width: "20%", border: "2px solid #333" }}>Spare Cable</th>
+                              </tr>
+                            </thead>
+                            <tbody>
                               {entry.descriptions.map((d, i) => (
                                 <tr key={`${entryIndex}-${i}`}>
-                                  {i === 0 ? (
-                                    <td
-                                      rowSpan={entry.descriptions.length + 1}
-                                      className="fw-semibold align-middle bg-light vertical-name-cell"
-                                    >
-                                      {entry.name}
-                                      <div className="mt-2 no-print">
-                                        <Button size="sm" variant="link" className="p-0 me-2" onClick={() => handleEditEntry(entryIndex)}>✎</Button>
-                                        <Button size="sm" variant="link" className="p-0 text-danger" onClick={() => handleRemoveName(entryIndex)}>✕</Button>
-                                      </div>
-                                    </td>
-                                  ) : null}
-
-                                  <td>{d.itemCode || "-"}</td>
-                                  <td>{d.desc}</td>
-                                  <td className="text-center">
+                                  <td style={{ border: "1px solid #333" }}>{d.itemCode || "-"}</td>
+                                  <td style={{ border: "1px solid #333" }}>{d.desc}</td>
+                                  <td className="text-center" style={{ border: "1px solid #333" }}>
                                     {d.mainCableQty ? (d.unit && d.unit !== "Meter" ? `${d.mainCableQty} ${d.unit}` : d.mainCableQty) : "-"}
                                   </td>
-                                  <td className="text-center">
+                                  <td className="text-center" style={{ border: "1px solid #333" }}>
                                     {d.spareCableQty ? (d.unit && d.unit !== "Meter" ? `${d.spareCableQty} ${d.unit}` : d.spareCableQty) : "-"}
                                   </td>
                                 </tr>
                               ))}
-                              <tr className="fw-bold">
-                                <td colSpan="2" className="text-end align-middle">Total:</td>
-                                <td className="text-center align-middle">
+                              {/* Entry Total Row */}
+                              <tr className="fw-bold" style={{ borderTop: "2px solid #333" }}>
+                                <td colSpan="2" className="text-end align-middle" style={{ border: "2px solid #333" }}>Total:</td>
+                                <td className="text-center align-middle" style={{ border: "2px solid #333" }}>
                                   <div className="d-flex flex-column gap-1 align-items-center justify-content-center">
                                     {Object.entries(entryTotals).map(([unit, counts], idx) => (
                                       counts.main > 0 && <div key={idx}>{counts.main} {unit}</div>
                                     ))}
                                   </div>
                                 </td>
-                                <td className="text-center align-middle">
+                                <td className="text-center align-middle" style={{ border: "2px solid #333" }}>
                                   <div className="d-flex flex-column gap-1 align-items-center justify-content-center">
                                     {Object.entries(entryTotals).map(([unit, counts], idx) => (
                                       counts.spare > 0 && <div key={idx}>{counts.spare} {unit}</div>
@@ -799,11 +811,11 @@ const BillForm = () => {
                                   </div>
                                 </td>
                               </tr>
-                            </React.Fragment>
-                          );
-                        })}
-                      </tbody>
-                    </Table>
+                            </tbody>
+                          </Table>
+                        </div>
+                      );
+                    })}
                   </div>
                 ) : (
                   <p className="text-muted fst-italic p-4 border rounded bg-white text-center">No entries added to this project yet.</p>
@@ -818,10 +830,10 @@ const BillForm = () => {
                     <Table bordered hover responsive className="align-middle mb-0">
                       <thead className="table-light text-center">
                         <tr>
-                          <th style={{ width: "15%" }}>Item Code</th>
-                          <th style={{ width: "45%" }}>Description</th>
-                          <th style={{ width: "20%" }}>Total Main Cable</th>
-                          <th style={{ width: "20%" }}>Total Spare Cable</th>
+                          <th style={{ width: "15%", border: "2px solid #333" }}>Item Code</th>
+                          <th style={{ width: "45%", border: "2px solid #333" }}>Description</th>
+                          <th style={{ width: "20%", border: "2px solid #333" }}>Total Main Cable</th>
+                          <th style={{ width: "20%", border: "2px solid #333" }}>Total Spare Cable</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -833,7 +845,7 @@ const BillForm = () => {
 
                           projectDetails.entries.forEach(entry => {
                             entry.descriptions.forEach(d => {
-                              const key = d.itemCode; // Use itemCode as unique key
+                              const key = `${d.itemCode}_${d.desc}`; // Use composite key
                               if (!totals[key]) {
                                 totals[key] = {
                                   itemCode: d.itemCode,
@@ -855,12 +867,12 @@ const BillForm = () => {
                             const item = totals[key];
                             return (
                               <tr key={key}>
-                                <td>{item.itemCode || "-"}</td>
-                                <td>{item.desc}</td>
-                                <td className="text-center fw-semibold">
+                                <td style={{ border: "1px solid #333" }}>{item.itemCode || "-"}</td>
+                                <td style={{ border: "1px solid #333" }}>{item.desc}</td>
+                                <td className="text-center fw-semibold" style={{ border: "1px solid #333" }}>
                                   {item.main > 0 ? `${item.main} ${item.unit && item.unit !== "Meter" ? item.unit : ""}` : "-"}
                                 </td>
-                                <td className="text-center fw-semibold">
+                                <td className="text-center fw-semibold" style={{ border: "1px solid #333" }}>
                                   {item.spare > 0 ? `${item.spare} ${item.unit && item.unit !== "Meter" ? item.unit : ""}` : "-"}
                                 </td>
                               </tr>
