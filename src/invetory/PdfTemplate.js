@@ -7,7 +7,7 @@ const parseQuantity = (qty) => {
   return match ? parseFloat(match[0]) : 0;
 };
 
-const PdfTemplate = ({ values, onReady }) => {
+const PdfTemplate = ({ values, allProjects = [], onReady }) => {
   useEffect(() => {
     onReady && onReady();
   }, []);
@@ -25,7 +25,6 @@ const PdfTemplate = ({ values, onReady }) => {
     nameOfWork,
     timeLimitAsPerSubWorkOrder,
     nameOfContractor,
-    allProjects = [],
   } = values;
 
   return (
@@ -71,22 +70,23 @@ const PdfTemplate = ({ values, onReady }) => {
 
               {project.entries.map((entry, eIndex) => (
                 <div key={eIndex} style={{ marginBottom: "20px", pageBreakInside: "avoid", breakInside: "avoid" }}>
-                  <table className="project-table" style={{ width: "100%", borderCollapse: "collapse" }}>
+                  {/* Location Header Div - Extracted from table to ensure better block cohesion */}
+                  <div style={{
+                    backgroundColor: "#444",
+                    color: "white",
+                    padding: "8px 12px",
+                    fontWeight: "bold",
+                    fontSize: "14px",
+                    border: "2px solid #333",
+                    borderBottom: "none", // visually connect to table
+                    marginBottom: "0", // Ensure no gap
+                    textAlign: "left"
+                  }}>
+                    {entry.name}
+                  </div>
+
+                  <table className="project-table" style={{ width: "100%", borderCollapse: "collapse", marginTop: "-2px" }}>
                     <thead>
-                      {/* Location Header Row - Moved inside table to fix double border issue */}
-                      <tr>
-                        <th colSpan="4" style={{
-                          backgroundColor: "#444",
-                          color: "white",
-                          padding: "8px 12px",
-                          fontWeight: "bold",
-                          fontSize: "14px",
-                          border: "2px solid #333",
-                          textAlign: "left"
-                        }}>
-                          {entry.name}
-                        </th>
-                      </tr>
                       {/* Column Headers */}
                       <tr>
                         <th style={{ width: "20%", border: "2px solid #333", background: "#f1f1f1", padding: "8px" }}>Item Code</th>
@@ -98,7 +98,7 @@ const PdfTemplate = ({ values, onReady }) => {
                     <tbody>
                       {entry.descriptions.map((d, i) => (
                         <tr key={i}>
-                          <td style={{ border: "1px solid #333", padding: "6px" }}>{d.itemCode}</td>
+                          <td style={{ border: "1px solid #333", padding: "6px" }}>{d.itemCode === "9925000010" ? "" : d.itemCode}</td>
                           <td style={{ border: "1px solid #333", padding: "6px", textAlign: "left" }}>{d.desc}</td>
                           <td style={{ border: "1px solid #333", padding: "6px", textAlign: "center" }}>
                             {d.mainCableQty ? `${d.mainCableQty} ${d.unit ? d.unit.toLowerCase() : ""}` : "-"}
@@ -115,7 +115,7 @@ const PdfTemplate = ({ values, onReady }) => {
 
               {/* Project Grand Total - Separate Table matching Live View (Black & White) */}
               <div style={{ marginTop: "5px", padding: "15px 15px 30px 15px", border: "1px solid #dee2e6", borderRadius: "5px", backgroundColor: "#fff", pageBreakInside: "avoid", breakInside: "avoid" }}>
-                <h6 style={{ color: "#000", fontWeight: "bold", marginBottom: "25px", marginTop: "0" }}>
+                <h6 style={{ color: "#000", fontWeight: "bold", marginBottom: "25px", marginTop: "0", whiteSpace: "nowrap" }}>
                   Project Total for:
                   <span style={{ color: "#000", marginLeft: "20px" }}>{project.projectName}</span>
                   <span style={{ color: "#6c757d", marginLeft: "10px", fontSize: "0.9em" }}>({project.projectNumber})</span>
@@ -163,11 +163,11 @@ const PdfTemplate = ({ values, onReady }) => {
                         );
                       }
 
-                      return order.sort().map((key, idx) => {
+                      const rows = order.sort().map((key, idx) => {
                         const item = totals[key];
                         return (
                           <tr key={idx}>
-                            <td style={{ padding: "10px", border: "1px solid #333" }}>{item.itemCode || "-"}</td>
+                            <td style={{ padding: "10px", border: "1px solid #333" }}>{item.itemCode === "9925000010" ? "" : (item.itemCode || "-")}</td>
                             <td style={{ padding: "10px", border: "1px solid #333", textAlign: "left" }}>{item.desc}</td>
                             <td style={{ padding: "10px", border: "1px solid #333" }}>
                               {item.main > 0 ? `${item.main} ${item.unit ? item.unit : ""}` : "-"}
@@ -178,6 +178,37 @@ const PdfTemplate = ({ values, onReady }) => {
                           </tr>
                         )
                       });
+
+                      // Calculate Total Utilized for specific items within this project
+                      let totalUtilized = 0;
+                      project.entries.forEach(entry => {
+                        entry.descriptions.forEach(d => {
+                          let isMatch = false;
+                          if (d.itemCode === "9925000007") isMatch = true;
+                          if (d.itemCode === "9925000047" && d.desc.includes("11KV cable loop")) isMatch = true;
+                          if (d.itemCode === "9925000010") isMatch = true;
+
+                          if (isMatch) {
+                            totalUtilized += parseQuantity(d.mainCableQty);
+                            totalUtilized += parseQuantity(d.spareCableQty);
+                          }
+                        });
+                      });
+
+                      // Append Total Cable Utilized Row
+                      rows.push(
+                        <tr key="total-utilized" style={{ borderTop: "2px solid #333" }}>
+                          <td style={{ border: "1px solid #333", backgroundColor: "#f9f9f9" }}></td>
+                          <td style={{ padding: "10px", border: "1px solid #333", textAlign: "right", fontWeight: "bold", backgroundColor: "#f9f9f9", whiteSpace: "nowrap", fontSize: "11px" }}>
+                            Total 11KV Cable Utilized (Start to End)
+                          </td>
+                          <td colSpan="2" style={{ padding: "10px", border: "1px solid #333", fontWeight: "bold", textAlign: "center", backgroundColor: "#f9f9f9" }}>
+                            {totalUtilized} Meter
+                          </td>
+                        </tr>
+                      );
+
+                      return rows;
                     })()}
                   </tbody>
                 </table>
@@ -207,6 +238,7 @@ const PdfTemplate = ({ values, onReady }) => {
               {(() => {
                 const grandTotals = {};
                 const order = [];
+                let totalUtilized = 0;
 
                 allProjects.forEach(proj => {
                   proj.entries.forEach(entry => {
@@ -226,6 +258,20 @@ const PdfTemplate = ({ values, onReady }) => {
                       }
                       grandTotals[key].main += parseQuantity(d.mainCableQty);
                       grandTotals[key].spare += parseQuantity(d.spareCableQty);
+
+                      // Calculate Total Utilized for specific items
+                      let isMatch = false;
+                      // 9925000007: Horizontal drilling...
+                      if (d.itemCode === "9925000007") isMatch = true;
+                      // 9925000047: 11KV cable loop at transformer & DP (Check description as code is reused)
+                      if (d.itemCode === "9925000047" && d.desc.includes("11KV cable loop")) isMatch = true;
+                      // 9925000010: Cable rising at DP structure
+                      if (d.itemCode === "9925000010") isMatch = true;
+
+                      if (isMatch) {
+                        totalUtilized += parseQuantity(d.mainCableQty);
+                        totalUtilized += parseQuantity(d.spareCableQty);
+                      }
                     });
                   });
                 });
@@ -240,11 +286,11 @@ const PdfTemplate = ({ values, onReady }) => {
                   );
                 }
 
-                return order.sort().map((key, idx) => {
+                const rows = order.sort().map((key, idx) => {
                   const item = grandTotals[key];
                   return (
                     <tr key={idx}>
-                      <td style={{ padding: "10px", border: "1px solid #333" }}>{item.itemCode || "-"}</td>
+                      <td style={{ padding: "10px", border: "1px solid #333" }}>{item.itemCode === "9925000010" ? "" : (item.itemCode || "-")}</td>
                       <td style={{ padding: "10px", border: "1px solid #333", textAlign: "left" }}>{item.desc}</td>
                       <td style={{ padding: "10px", border: "1px solid #333" }}>
                         {item.main > 0 ? `${item.main} ${item.unit ? item.unit : ""}` : "-"}
@@ -255,6 +301,21 @@ const PdfTemplate = ({ values, onReady }) => {
                     </tr>
                   )
                 });
+
+                // Append Total Cable Utilized Row
+                rows.push(
+                  <tr key="total-utilized" style={{ borderTop: "2px solid #333" }}>
+                    <td style={{ border: "1px solid #333", backgroundColor: "#f9f9f9" }}></td>
+                    <td style={{ padding: "10px", border: "1px solid #333", textAlign: "right", fontWeight: "bold", backgroundColor: "#f9f9f9", whiteSpace: "nowrap", fontSize: "11px" }}>
+                      Total 11KV Cable Utilized (Start to End)
+                    </td>
+                    <td colSpan="2" style={{ padding: "10px", border: "1px solid #333", fontWeight: "bold", textAlign: "center", backgroundColor: "#f9f9f9" }}>
+                      {totalUtilized} Meter
+                    </td>
+                  </tr>
+                );
+
+                return rows;
               })()}
             </tbody>
           </table>

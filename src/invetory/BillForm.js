@@ -800,7 +800,7 @@ const BillForm = () => {
                             <tbody>
                               {entry.descriptions.map((d, i) => (
                                 <tr key={`${entryIndex}-${i}`}>
-                                  <td style={{ border: "1px solid #333" }}>{d.itemCode || "-"}</td>
+                                  <td style={{ border: "1px solid #333" }}>{d.itemCode === "9925000010" ? "" : (d.itemCode || "-")}</td>
                                   <td style={{ border: "1px solid #333" }}>{d.desc}</td>
                                   <td className="text-center" style={{ border: "1px solid #333" }}>
                                     {d.mainCableQty ? (d.unit ? `${d.mainCableQty} ${d.unit}` : d.mainCableQty) : "-"}
@@ -880,11 +880,14 @@ const BillForm = () => {
 
                           if (order.length === 0) return <tr><td colSpan="4" className="text-center text-muted">No items to total.</td></tr>;
 
-                          return order.sort().map(key => {
+
+
+                          // Convert to array
+                          const rows = order.sort().map(key => {
                             const item = totals[key];
                             return (
                               <tr key={key}>
-                                <td style={{ border: "1px solid #333" }}>{item.itemCode || "-"}</td>
+                                <td style={{ border: "1px solid #333" }}>{item.itemCode === "9925000010" ? "" : (item.itemCode || "-")}</td>
                                 <td style={{ border: "1px solid #333" }}>{item.desc}</td>
                                 <td className="text-center fw-semibold" style={{ border: "1px solid #333" }}>
                                   {item.main > 0 ? `${item.main} ${item.unit ? item.unit : ""}` : "-"}
@@ -895,6 +898,37 @@ const BillForm = () => {
                               </tr>
                             );
                           });
+
+                          // Calculate Total Utilized for specific items
+                          let totalUtilized = 0;
+                          projectDetails.entries.forEach(entry => {
+                            entry.descriptions.forEach(d => {
+                              let isMatch = false;
+                              if (d.itemCode === "9925000007") isMatch = true;
+                              if (d.itemCode === "9925000047" && d.desc.includes("11KV cable loop")) isMatch = true;
+                              if (d.itemCode === "9925000010") isMatch = true;
+
+                              if (isMatch) {
+                                totalUtilized += parseQuantity(d.mainCableQty);
+                                totalUtilized += parseQuantity(d.spareCableQty);
+                              }
+                            });
+                          });
+
+                          // Append Total Cable Utilized Row
+                          rows.push(
+                            <tr key="total-utilized" style={{ borderTop: "2px solid #333" }}>
+                              <td style={{ border: "1px solid #333", backgroundColor: "#f9f9f9" }}></td>
+                              <td className="text-end fw-bold" style={{ border: "1px solid #333", backgroundColor: "#f9f9f9", whiteSpace: "nowrap", fontSize: "12px" }}>
+                                Total 11KV Cable Utilized (Start to End)
+                              </td>
+                              <td colSpan="2" className="text-center fw-bold" style={{ border: "1px solid #333", backgroundColor: "#f9f9f9" }}>
+                                {totalUtilized} Meter
+                              </td>
+                            </tr>
+                          );
+
+                          return rows;
                         })()}
                       </tbody>
                     </Table>
@@ -932,6 +966,7 @@ const BillForm = () => {
         >
           <PdfTemplate
             values={formValues}
+            allProjects={allProjects}
             onReady={() => setIsPdfMounted(true)}
           />
         </div>
