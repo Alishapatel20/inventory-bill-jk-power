@@ -114,12 +114,12 @@ const PdfTemplate = ({ values, onReady }) => {
               ))}
 
               {/* Project Grand Total - Separate Table matching Live View (Black & White) */}
-              <div style={{ marginTop: "5px", padding: "15px 15px 30px 15px", border: "1px solid #dee2e6", borderRadius: "5px", backgroundColor: "#fff" }}>
-                <h5 style={{ color: "#000", fontWeight: "bold", marginBottom: "25px", marginTop: "0" }}>
+              <div style={{ marginTop: "5px", padding: "15px 15px 30px 15px", border: "1px solid #dee2e6", borderRadius: "5px", backgroundColor: "#fff", pageBreakInside: "avoid", breakInside: "avoid" }}>
+                <h6 style={{ color: "#000", fontWeight: "bold", marginBottom: "25px", marginTop: "0" }}>
                   Project Total for:
                   <span style={{ color: "#000", marginLeft: "20px" }}>{project.projectName}</span>
                   <span style={{ color: "#6c757d", marginLeft: "10px", fontSize: "0.9em" }}>({project.projectNumber})</span>
-                </h5>
+                </h6>
 
                 <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "center", marginBottom: "0" }}>
                   <thead>
@@ -189,7 +189,7 @@ const PdfTemplate = ({ values, onReady }) => {
 
       {/* ===== GRAND TOTAL (DESCRIPTION-WISE) ===== */}
       {allProjects.length > 1 && (
-        <div style={{ padding: "15px 15px 30px 15px", border: "1px solid #dee2e6", borderRadius: "5px", backgroundColor: "#fff", marginTop: "20px" }}>
+        <div style={{ padding: "15px 15px 30px 15px", border: "1px solid #dee2e6", borderRadius: "5px", backgroundColor: "#fff", marginTop: "20px", pageBreakInside: "avoid", breakInside: "avoid" }}>
           <h6 style={{ color: "#000", fontWeight: "bold", marginBottom: "25px", marginTop: "0", textAlign: "center", textTransform: "uppercase", fontSize: "14px" }}>
             Grand Total (Description-wise)
           </h6>
