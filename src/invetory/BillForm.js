@@ -95,7 +95,7 @@ const BillForm = () => {
     { id: 4, itemCode: "9925000007", desc: "Horizontal drilling using Auger machine & putting of HDPE pipe & laying of cable" },
     { id: 5, itemCode: "9925000009", desc: "Green color 110mm HDPE pipe" },
     { id: 6, itemCode: "9925000011", desc: "Concrete stone route marker" },
-    { id: 7, itemCode: "9925000014", desc: "Cable rising on DP structure" },
+    { id: 7, itemCode: "9925000014", desc: "Cable rising on DP structure (cleate)" },
     { id: 8, itemCode: "9925000015", desc: "HDPE Guard pipe" },
     { id: 9, itemCode: "9925000016", desc: "Pipe type earthing" },
     { id: 10, itemCode: "9925000018", desc: "11KV x 185 sq.mm Outdoor end terminations" },
@@ -106,7 +106,7 @@ const BillForm = () => {
     { id: 15, itemCode: "9925000026", desc: "Preparation and submission of layout drawings" },
     { id: 16, itemCode: "9925000047", desc: "Cable in open or readymade trench" },
     { id: 17, itemCode: "9925000047", desc: "11KV cable loop at transformer & DP" },
-    { id: 18, itemCode: "9925000047", desc: "Cable rising at DP structure" }
+    { id: 18, itemCode: "9925000010", desc: "Cable rising at DP structure" }
   ];
 
   const defaultInitialValues = {
@@ -151,6 +151,23 @@ const BillForm = () => {
         } else if (row.data && typeof row.data === 'object') {
           entries = row.data.entries || [];
           metadata = row.data.formDetails || {};
+        }
+
+        // Patch old item codes to new ones
+        if (entries) {
+          entries.forEach(entry => {
+            if (entry.descriptions) {
+              entry.descriptions.forEach(d => {
+                if (d.itemCode === "9925000047" && d.desc === "Cable rising at DP structure") {
+                  d.itemCode = "9925000010";
+                }
+                // Patch old description for item 9925000014
+                if (d.itemCode === "9925000014" && d.desc === "Cable rising on DP structure") {
+                  d.desc = "Cable rising on DP structure (cleate)";
+                }
+              });
+            }
+          });
         }
 
         return {
@@ -786,10 +803,10 @@ const BillForm = () => {
                                   <td style={{ border: "1px solid #333" }}>{d.itemCode || "-"}</td>
                                   <td style={{ border: "1px solid #333" }}>{d.desc}</td>
                                   <td className="text-center" style={{ border: "1px solid #333" }}>
-                                    {d.mainCableQty ? (d.unit && d.unit !== "Meter" ? `${d.mainCableQty} ${d.unit}` : d.mainCableQty) : "-"}
+                                    {d.mainCableQty ? (d.unit ? `${d.mainCableQty} ${d.unit}` : d.mainCableQty) : "-"}
                                   </td>
                                   <td className="text-center" style={{ border: "1px solid #333" }}>
-                                    {d.spareCableQty ? (d.unit && d.unit !== "Meter" ? `${d.spareCableQty} ${d.unit}` : d.spareCableQty) : "-"}
+                                    {d.spareCableQty ? (d.unit ? `${d.spareCableQty} ${d.unit}` : d.spareCableQty) : "-"}
                                   </td>
                                 </tr>
                               ))}
@@ -870,10 +887,10 @@ const BillForm = () => {
                                 <td style={{ border: "1px solid #333" }}>{item.itemCode || "-"}</td>
                                 <td style={{ border: "1px solid #333" }}>{item.desc}</td>
                                 <td className="text-center fw-semibold" style={{ border: "1px solid #333" }}>
-                                  {item.main > 0 ? `${item.main} ${item.unit && item.unit !== "Meter" ? item.unit : ""}` : "-"}
+                                  {item.main > 0 ? `${item.main} ${item.unit ? item.unit : ""}` : "-"}
                                 </td>
                                 <td className="text-center fw-semibold" style={{ border: "1px solid #333" }}>
-                                  {item.spare > 0 ? `${item.spare} ${item.unit && item.unit !== "Meter" ? item.unit : ""}` : "-"}
+                                  {item.spare > 0 ? `${item.spare} ${item.unit ? item.unit : ""}` : "-"}
                                 </td>
                               </tr>
                             );
@@ -1036,7 +1053,7 @@ const BillForm = () => {
                     <BootstrapForm.Control
                       type="text"
                       value={d.mainCableQty}
-                      placeholder={`e.g. 20 ${d.unit && d.unit !== "Meter" ? d.unit : ""}`}
+                      placeholder={`e.g. 20 ${d.unit ? d.unit : ""}`}
                       onChange={(e) =>
                         handleCableChange(d.desc, "mainCableQty", e.target.value)
                       }
@@ -1047,7 +1064,7 @@ const BillForm = () => {
                     <BootstrapForm.Control
                       type="text"
                       value={d.spareCableQty}
-                      placeholder={`e.g. 10 ${d.unit && d.unit !== "Meter" ? d.unit : ""}`}
+                      placeholder={`e.g. 10 ${d.unit ? d.unit : ""}`}
                       onChange={(e) =>
                         handleCableChange(d.desc, "spareCableQty", e.target.value)
                       }
@@ -1109,10 +1126,10 @@ const BillForm = () => {
                         <div>
                           <div><strong>{d.desc}</strong> <span className="badge bg-secondary ms-2">{d.unit || "Meter"}</span></div>
                           {d.mainCableQty && (
-                            <div>Main Cable: <span className="fw-semibold">{d.mainCableQty} {d.unit && d.unit !== "Meter" ? d.unit : ""}</span></div>
+                            <div>Main Cable: <span className="fw-semibold">{d.mainCableQty} {d.unit ? d.unit : ""}</span></div>
                           )}
                           {d.spareCableQty && (
-                            <div>Spare Cable: <span className="fw-semibold">{d.spareCableQty} {d.unit && d.unit !== "Meter" ? d.unit : ""}</span></div>
+                            <div>Spare Cable: <span className="fw-semibold">{d.spareCableQty} {d.unit ? d.unit : ""}</span></div>
                           )}
                         </div>
                         <Button

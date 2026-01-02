@@ -101,10 +101,10 @@ const PdfTemplate = ({ values, onReady }) => {
                           <td style={{ border: "1px solid #333", padding: "6px" }}>{d.itemCode}</td>
                           <td style={{ border: "1px solid #333", padding: "6px", textAlign: "left" }}>{d.desc}</td>
                           <td style={{ border: "1px solid #333", padding: "6px", textAlign: "center" }}>
-                            {d.mainCableQty ? `${d.mainCableQty} ${d.unit && d.unit !== "Meter" ? d.unit.toLowerCase() : ""}` : "-"}
+                            {d.mainCableQty ? `${d.mainCableQty} ${d.unit ? d.unit.toLowerCase() : ""}` : "-"}
                           </td>
                           <td style={{ border: "1px solid #333", padding: "6px", textAlign: "center" }}>
-                            {d.spareCableQty ? `${d.spareCableQty} ${d.unit && d.unit !== "Meter" ? d.unit.toLowerCase() : ""}` : "-"}
+                            {d.spareCableQty ? `${d.spareCableQty} ${d.unit ? d.unit.toLowerCase() : ""}` : "-"}
                           </td>
                         </tr>
                       ))}
@@ -170,10 +170,10 @@ const PdfTemplate = ({ values, onReady }) => {
                             <td style={{ padding: "10px", border: "1px solid #333" }}>{item.itemCode || "-"}</td>
                             <td style={{ padding: "10px", border: "1px solid #333", textAlign: "left" }}>{item.desc}</td>
                             <td style={{ padding: "10px", border: "1px solid #333" }}>
-                              {item.main > 0 ? `${item.main} ${item.unit && item.unit !== "Meter" ? item.unit : ""}` : "-"}
+                              {item.main > 0 ? `${item.main} ${item.unit ? item.unit : ""}` : "-"}
                             </td>
                             <td style={{ padding: "10px", border: "1px solid #333" }}>
-                              {item.spare > 0 ? `${item.spare} ${item.unit && item.unit !== "Meter" ? item.unit : ""}` : "-"}
+                              {item.spare > 0 ? `${item.spare} ${item.unit ? item.unit : ""}` : "-"}
                             </td>
                           </tr>
                         )
@@ -188,11 +188,11 @@ const PdfTemplate = ({ values, onReady }) => {
       )}
 
       {/* ===== GRAND TOTAL (DESCRIPTION-WISE) ===== */}
-      {allProjects.length > 0 && (
+      {allProjects.length > 1 && (
         <div style={{ padding: "15px 15px 30px 15px", border: "1px solid #dee2e6", borderRadius: "5px", backgroundColor: "#fff", marginTop: "20px" }}>
-          <h5 style={{ color: "#000", fontWeight: "bold", marginBottom: "25px", marginTop: "0", textAlign: "center", textTransform: "uppercase" }}>
+          <h6 style={{ color: "#000", fontWeight: "bold", marginBottom: "25px", marginTop: "0", textAlign: "center", textTransform: "uppercase", fontSize: "14px" }}>
             Grand Total (Description-wise)
-          </h5>
+          </h6>
 
           <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "center", marginBottom: "0" }}>
             <thead>
@@ -247,10 +247,10 @@ const PdfTemplate = ({ values, onReady }) => {
                       <td style={{ padding: "10px", border: "1px solid #333" }}>{item.itemCode || "-"}</td>
                       <td style={{ padding: "10px", border: "1px solid #333", textAlign: "left" }}>{item.desc}</td>
                       <td style={{ padding: "10px", border: "1px solid #333" }}>
-                        {item.main > 0 ? `${item.main} ${item.unit && item.unit !== "Meter" ? item.unit : ""}` : "-"}
+                        {item.main > 0 ? `${item.main} ${item.unit ? item.unit : ""}` : "-"}
                       </td>
                       <td style={{ padding: "10px", border: "1px solid #333" }}>
-                        {item.spare > 0 ? `${item.spare} ${item.unit && item.unit !== "Meter" ? item.unit : ""}` : "-"}
+                        {item.spare > 0 ? `${item.spare} ${item.unit ? item.unit : ""}` : "-"}
                       </td>
                     </tr>
                   )
