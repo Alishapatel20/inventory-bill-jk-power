@@ -200,18 +200,9 @@ const BillForm = () => {
         entries: projectDetails.entries,
       };
 
-      // We need to merge the current project into the allProjects list if it's being edited/created
-      let pdfProjects = [...allProjects];
-
-      if (editingProjectId) {
-        // If editing, find and replace the project in the list with current state
-        pdfProjects = pdfProjects.map(p => p.id === editingProjectId ? currentProject : p);
-      } else if (projectDetails.entries.length > 0) {
-        // If new and has entries, append it (or just use it if list is empty)
-        // Check if it's already there to prevent duplicates if user clicked multiple times
-        // For 'New Project', we might just append it temporarily for the PDF
-        pdfProjects = [...pdfProjects, currentProject];
-      }
+      // FOR PDF: We ONLY want the current project being edited/created. 
+      // Do NOT merge with allProjects. 
+      const pdfProjects = [currentProject];
 
       // Pass ALL projects to the PDF template
       const fullValues = { ...values, allProjects: pdfProjects };
@@ -966,7 +957,7 @@ const BillForm = () => {
         >
           <PdfTemplate
             values={formValues}
-            allProjects={allProjects}
+            allProjects={formValues.allProjects || []}
             onReady={() => setIsPdfMounted(true)}
           />
         </div>

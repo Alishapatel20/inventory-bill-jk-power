@@ -114,20 +114,25 @@ const PdfTemplate = ({ values, allProjects = [], onReady }) => {
               ))}
 
               {/* Project Grand Total - Separate Table matching Live View (Black & White) */}
-              <div style={{ marginTop: "5px", padding: "15px 15px 30px 15px", border: "1px solid #dee2e6", borderRadius: "5px", backgroundColor: "#fff", pageBreakInside: "avoid", breakInside: "avoid" }}>
-                <h6 style={{ color: "#000", fontWeight: "bold", marginBottom: "25px", marginTop: "0", whiteSpace: "nowrap" }}>
-                  Project Total for:
-                  <span style={{ color: "#000", marginLeft: "20px" }}>{project.projectName}</span>
-                  <span style={{ color: "#6c757d", marginLeft: "10px", fontSize: "0.9em" }}>({project.projectNumber})</span>
-                </h6>
+              <div style={{ marginTop: "20px", padding: "0", border: "2px solid #333", borderRadius: "0", backgroundColor: "#fff", pageBreakInside: "avoid", breakInside: "avoid" }}>
+                <div style={{
+                  backgroundColor: "#f1f1f1",
+                  padding: "10px",
+                  borderBottom: "2px solid #333",
+                  textAlign: "center"
+                }}>
+                  <h6 style={{ color: "#000", fontWeight: "bold", margin: "0", fontSize: "16px" }}>
+                    Project Total for: {project.projectName} <span style={{ fontWeight: "normal", fontSize: "0.9em" }}>({project.projectNumber})</span>
+                  </h6>
+                </div>
 
                 <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "center", marginBottom: "0" }}>
                   <thead>
-                    <tr style={{ borderBottom: "2px solid #000", color: "#000" }}>
-                      <th style={{ padding: "10px", border: "2px solid #333", width: "15%" }}>Item Code</th>
-                      <th style={{ padding: "10px", border: "2px solid #333", width: "45%" }}>Description</th>
-                      <th style={{ padding: "10px", border: "2px solid #333", width: "20%" }}>Total Main Cable</th>
-                      <th style={{ padding: "10px", border: "2px solid #333", width: "20%" }}>Total Spare Cable</th>
+                    <tr style={{ backgroundColor: "#fff" }}>
+                      <th style={{ padding: "10px", borderRight: "2px solid #333", borderBottom: "2px solid #333", width: "15%" }}>Item Code</th>
+                      <th style={{ padding: "10px", borderRight: "2px solid #333", borderBottom: "2px solid #333", width: "45%" }}>Description</th>
+                      <th style={{ padding: "10px", borderRight: "2px solid #333", borderBottom: "2px solid #333", width: "20%" }}>Total Main Cable</th>
+                      <th style={{ padding: "10px", borderBottom: "2px solid #333", width: "20%" }}>Total Spare Cable</th>
                     </tr>
                   </thead>
                   <tbody>
