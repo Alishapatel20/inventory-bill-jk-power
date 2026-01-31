@@ -71,6 +71,7 @@ const BillForm = () => {
   const [editingProjectId, setEditingProjectId] = useState(null); // Track which project is being edited in Supabase
   const [view, setView] = useState("dashboard"); // 'dashboard' | 'form'
   const [isSaving, setIsSaving] = useState(false); // Track save operation
+  const [pdfFormat, setPdfFormat] = useState("horizontal"); // 'vertical' | 'horizontal'
 
   // Modal State for Project Name/Number
   const [modalProjectName, setModalProjectName] = useState("");
@@ -204,8 +205,8 @@ const BillForm = () => {
       // Do NOT merge with allProjects. 
       const pdfProjects = [currentProject];
 
-      // Pass ALL projects to the PDF template
-      const fullValues = { ...values, allProjects: pdfProjects };
+      // Pass ALL projects to the PDF template with format
+      const fullValues = { ...values, allProjects: pdfProjects, pdfFormat };
       setFormValues(fullValues);
 
       // Make PdfTemplate render
@@ -221,8 +222,10 @@ const BillForm = () => {
           return;
         }
 
+        // Configure PDF based on selected format
+        const isHorizontal = pdfFormat === "horizontal";
         const doc = new jsPDF({
-          orientation: "p",
+          orientation: isHorizontal ? "l" : "p", // landscape or portrait
           unit: "pt",
           format: "a4",
         });
@@ -237,12 +240,12 @@ const BillForm = () => {
           },
           x: 20, // Left margin (pt)
           y: 20, // Top margin (pt)
-          width: 540, // A4 width (595.28) - margins -> Target ~555pt. Using 540 to be safe.
-          windowWidth: 750, // Corresponds to CSS width + padding
+          width: isHorizontal ? 800 : 540, // Landscape: 800pt, Portrait: 540pt
+          windowWidth: isHorizontal ? 1100 : 750, // Landscape: 1100px, Portrait: 750px
           margin: [20, 20, 20, 20],
           autoPaging: 'text',
           html2canvas: {
-            scale: 0.74, // 555pt / 750px ~= 0.74
+            scale: isHorizontal ? 0.73 : 0.74, // Adjust scale based on format
             useCORS: true,
             logging: true,
             letterRendering: true,
@@ -699,6 +702,45 @@ const BillForm = () => {
                             />
                           )}
                         </Field>
+                      </div>
+
+                      {/* PDF Format Selection */}
+                      <div className="mb-3 p-3 border rounded bg-light">
+                        <label className="form-label fw-bold mb-2">📄 PDF Format:</label>
+                        <div className="d-flex gap-3">
+                          <div className="form-check">
+                            <input
+                              className="form-check-input"
+                              type="radio"
+                              name="pdfFormat"
+                              id="formatVertical"
+                              value="vertical"
+                              checked={pdfFormat === "vertical"}
+                              onChange={(e) => setPdfFormat(e.target.value)}
+                            />
+                            <label className="form-check-label" htmlFor="formatVertical">
+                              <strong>Vertical Table (Portrait)</strong>
+                              <br />
+                              <small className="text-muted">Traditional row-based layout</small>
+                            </label>
+                          </div>
+                          <div className="form-check">
+                            <input
+                              className="form-check-input"
+                              type="radio"
+                              name="pdfFormat"
+                              id="formatHorizontal"
+                              value="horizontal"
+                              checked={pdfFormat === "horizontal"}
+                              onChange={(e) => setPdfFormat(e.target.value)}
+                            />
+                            <label className="form-check-label" htmlFor="formatHorizontal">
+                              <strong>Horizontal Table (Landscape)</strong>
+                              <br />
+                              <small className="text-muted">Excel-like column-based layout</small>
+                            </label>
+                          </div>
+                        </div>
                       </div>
 
                       {/* Buttons */}

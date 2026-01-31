@@ -1,13 +1,19 @@
 .pdf-wrapper {
   /* Using a fixed pixel width that aligns with the windowWidth passed to doc.html()
-     helps ensure font sizes render predictably. */
-  width: 750px;
+     helps ensure font sizes render predictably. Width adjusts based on format. */
+  width: 1100px;
+  /* Default: landscape/horizontal */
   background: white;
   font-family: "Arial", sans-serif;
   color: #222;
   /* Remove fixed padding; we use PDF margins instead, 
      but keeping a small internal padding ensures content doesn't touch edges if margin is small */
   padding: 10px;
+}
+
+.pdf-wrapper.vertical {
+  width: 750px;
+  /* Portrait/vertical format */
 }
 
 .pdf-main-title {
@@ -106,16 +112,28 @@ tr {
 
 .project-table th {
   background: #f1f1f1;
-  padding: 8px;
+  padding: 4px;
   border: 1px solid #ccc;
-  font-size: 13px;
+  font-size: 9px;
 }
 
 .project-table td {
-  padding: 6px 8px;
+  padding: 3px;
   border: 1px solid #ddd;
-  font-size: 12px;
+  font-size: 8px;
   vertical-align: top;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  overflow: hidden;
+}
+
+/* Optimize horizontal table layout */
+.project-table tbody tr:first-child th,
+.project-table tbody tr:nth-child(2) th,
+.project-table tbody tr:nth-child(3) th,
+.project-table tbody tr:nth-child(4) th {
+  min-width: 80px;
+  white-space: nowrap;
 }
 
 .entry-total-row {

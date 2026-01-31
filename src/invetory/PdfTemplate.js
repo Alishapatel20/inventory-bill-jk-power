@@ -25,17 +25,20 @@ const PdfTemplate = ({ values, allProjects = [], onReady }) => {
     nameOfWork,
     timeLimitAsPerSubWorkOrder,
     nameOfContractor,
+    pdfFormat = "horizontal", // Default to horizontal if not provided
   } = values;
 
+  const isHorizontal = pdfFormat === "horizontal";
+
   return (
-    <div className="pdf-wrapper">
+    <div className={`pdf-wrapper ${isHorizontal ? '' : 'vertical'}`}>
 
       {/* ===== TITLE ===== */}
       <h1 className="pdf-main-title">INVENTORY BILL SUMMARY</h1>
       <h3 className="pdf-sub-title">Sub-Work Order Performance Report</h3>
 
       {/* ===== BASIC DETAILS ===== */}
-      <div className="pdf-section">
+      <div className="pdf-section" style={isHorizontal ? { pageBreakAfter: "always" } : {}}>
         <h2 className="section-title">Work Details</h2>
 
         <table className="info-table">
@@ -85,31 +88,76 @@ const PdfTemplate = ({ values, allProjects = [], onReady }) => {
                     {entry.name}
                   </div>
 
-                  <table className="project-table" style={{ width: "100%", borderCollapse: "collapse", marginTop: "-2px" }}>
-                    <thead>
-                      {/* Column Headers */}
-                      <tr>
-                        <th style={{ width: "20%", border: "2px solid #333", background: "#f1f1f1", padding: "8px" }}>Item Code</th>
-                        <th style={{ border: "2px solid #333", background: "#f1f1f1", padding: "8px" }}>Description</th>
-                        <th style={{ width: "15%", border: "2px solid #333", background: "#f1f1f1", padding: "8px" }}>Main Cable</th>
-                        <th style={{ width: "15%", border: "2px solid #333", background: "#f1f1f1", padding: "8px" }}>Spare Cable</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {entry.descriptions.map((d, i) => (
-                        <tr key={i}>
-                          <td style={{ border: "1px solid #333", padding: "6px" }}>{d.itemCode === "9925000010" ? "" : d.itemCode}</td>
-                          <td style={{ border: "1px solid #333", padding: "6px", textAlign: "left" }}>{d.desc}</td>
-                          <td style={{ border: "1px solid #333", padding: "6px", textAlign: "center" }}>
-                            {d.mainCableQty ? `${d.mainCableQty} ${d.unit ? d.unit.toLowerCase() : ""}` : "-"}
-                          </td>
-                          <td style={{ border: "1px solid #333", padding: "6px", textAlign: "center" }}>
-                            {d.spareCableQty ? `${d.spareCableQty} ${d.unit ? d.unit.toLowerCase() : ""}` : "-"}
-                          </td>
+                  {/* Conditional Table Rendering Based on Format */}
+                  {isHorizontal ? (
+                    // HORIZONTAL FORMAT (Items as Columns)
+                    <table className="project-table" style={{ width: "100%", borderCollapse: "collapse", marginTop: "-2px", tableLayout: "fixed" }}>
+                      <tbody>
+                        {/* Item Code Row */}
+                        <tr>
+                          <th style={{ width: "80px", border: "2px solid #333", background: "#f1f1f1", padding: "4px", textAlign: "left", fontWeight: "bold", fontSize: "9px" }}>Item Code</th>
+                          {entry.descriptions.map((d, i) => (
+                            <td key={i} style={{ border: "1px solid #333", padding: "3px", textAlign: "center", fontSize: "8px", wordWrap: "break-word", overflow: "hidden" }}>
+                              {d.itemCode === "9925000010" ? "" : d.itemCode}
+                            </td>
+                          ))}
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                        {/* Description Row */}
+                        <tr>
+                          <th style={{ width: "80px", border: "2px solid #333", background: "#f1f1f1", padding: "4px", textAlign: "left", fontWeight: "bold", fontSize: "9px" }}>Description</th>
+                          {entry.descriptions.map((d, i) => (
+                            <td key={i} style={{ border: "1px solid #333", padding: "3px", textAlign: "left", fontSize: "7px", lineHeight: "1.2", wordWrap: "break-word", overflow: "hidden", maxHeight: "50px" }}>
+                              {d.desc}
+                            </td>
+                          ))}
+                        </tr>
+                        {/* Main Cable Row */}
+                        <tr>
+                          <th style={{ width: "80px", border: "2px solid #333", background: "#f1f1f1", padding: "4px", textAlign: "left", fontWeight: "bold", fontSize: "9px" }}>Main Cable</th>
+                          {entry.descriptions.map((d, i) => (
+                            <td key={i} style={{ border: "1px solid #333", padding: "3px", textAlign: "center", fontSize: "8px" }}>
+                              {d.mainCableQty ? `${d.mainCableQty} ${d.unit ? d.unit.toLowerCase() : ""}` : "-"}
+                            </td>
+                          ))}
+                        </tr>
+                        {/* Spare Cable Row */}
+                        <tr>
+                          <th style={{ width: "80px", border: "2px solid #333", background: "#f1f1f1", padding: "4px", textAlign: "left", fontWeight: "bold", fontSize: "9px" }}>Spare Cable</th>
+                          {entry.descriptions.map((d, i) => (
+                            <td key={i} style={{ border: "1px solid #333", padding: "3px", textAlign: "center", fontSize: "8px" }}>
+                              {d.spareCableQty ? `${d.spareCableQty} ${d.unit ? d.unit.toLowerCase() : ""}` : "-"}
+                            </td>
+                          ))}
+                        </tr>
+                      </tbody>
+                    </table>
+                  ) : (
+                    // VERTICAL FORMAT (Items as Rows - Traditional)
+                    <table className="project-table" style={{ width: "100%", borderCollapse: "collapse", marginTop: "-2px" }}>
+                      <thead>
+                        <tr>
+                          <th style={{ width: "20%", border: "2px solid #333", background: "#f1f1f1", padding: "8px" }}>Item Code</th>
+                          <th style={{ border: "2px solid #333", background: "#f1f1f1", padding: "8px" }}>Description</th>
+                          <th style={{ width: "15%", border: "2px solid #333", background: "#f1f1f1", padding: "8px" }}>Main Cable</th>
+                          <th style={{ width: "15%", border: "2px solid #333", background: "#f1f1f1", padding: "8px" }}>Spare Cable</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {entry.descriptions.map((d, i) => (
+                          <tr key={i}>
+                            <td style={{ border: "1px solid #333", padding: "6px" }}>{d.itemCode === "9925000010" ? "" : d.itemCode}</td>
+                            <td style={{ border: "1px solid #333", padding: "6px", textAlign: "left" }}>{d.desc}</td>
+                            <td style={{ border: "1px solid #333", padding: "6px", textAlign: "center" }}>
+                              {d.mainCableQty ? `${d.mainCableQty} ${d.unit ? d.unit.toLowerCase() : ""}` : "-"}
+                            </td>
+                            <td style={{ border: "1px solid #333", padding: "6px", textAlign: "center" }}>
+                              {d.spareCableQty ? `${d.spareCableQty} ${d.unit ? d.unit.toLowerCase() : ""}` : "-"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
                 </div>
               ))}
 
@@ -126,15 +174,7 @@ const PdfTemplate = ({ values, allProjects = [], onReady }) => {
                   </h6>
                 </div>
 
-                <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "center", marginBottom: "0" }}>
-                  <thead>
-                    <tr style={{ backgroundColor: "#fff" }}>
-                      <th style={{ padding: "10px", borderRight: "2px solid #333", borderBottom: "2px solid #333", width: "15%" }}>Item Code</th>
-                      <th style={{ padding: "10px", borderRight: "2px solid #333", borderBottom: "2px solid #333", width: "45%" }}>Description</th>
-                      <th style={{ padding: "10px", borderRight: "2px solid #333", borderBottom: "2px solid #333", width: "20%" }}>Total Main Cable</th>
-                      <th style={{ padding: "10px", borderBottom: "2px solid #333", width: "20%" }}>Total Spare Cable</th>
-                    </tr>
-                  </thead>
+                <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "center", marginBottom: "0", tableLayout: isHorizontal ? "fixed" : "auto" }}>
                   <tbody>
                     {(() => {
                       const totals = {};
@@ -161,28 +201,15 @@ const PdfTemplate = ({ values, allProjects = [], onReady }) => {
                       if (order.length === 0) {
                         return (
                           <tr>
-                            <td colSpan="4" style={{ padding: "15px", color: "#6c757d", border: "1px solid #dee2e6" }}>
+                            <td colSpan="100%" style={{ padding: "15px", color: "#6c757d", border: "1px solid #dee2e6" }}>
                               No cable quantities added
                             </td>
                           </tr>
                         );
                       }
 
-                      const rows = order.sort().map((key, idx) => {
-                        const item = totals[key];
-                        return (
-                          <tr key={idx}>
-                            <td style={{ padding: "10px", border: "1px solid #333" }}>{item.itemCode === "9925000010" ? "" : (item.itemCode || "-")}</td>
-                            <td style={{ padding: "10px", border: "1px solid #333", textAlign: "left" }}>{item.desc}</td>
-                            <td style={{ padding: "10px", border: "1px solid #333" }}>
-                              {item.main > 0 ? `${item.main} ${item.unit ? item.unit : ""}` : "-"}
-                            </td>
-                            <td style={{ padding: "10px", border: "1px solid #333" }}>
-                              {item.spare > 0 ? `${item.spare} ${item.unit ? item.unit : ""}` : "-"}
-                            </td>
-                          </tr>
-                        )
-                      });
+                      const sortedOrder = order.sort();
+                      const items = sortedOrder.map(key => totals[key]);
 
                       // Calculate Total Utilized for specific items within this project
                       let totalUtilized = 0;
@@ -200,20 +227,73 @@ const PdfTemplate = ({ values, allProjects = [], onReady }) => {
                         });
                       });
 
-                      // Append Total Cable Utilized Row
-                      rows.push(
-                        <tr key="total-utilized" style={{ borderTop: "2px solid #333" }}>
-                          <td style={{ border: "1px solid #333", backgroundColor: "#f9f9f9" }}></td>
-                          <td style={{ padding: "10px", border: "1px solid #333", textAlign: "right", fontWeight: "bold", backgroundColor: "#f9f9f9", whiteSpace: "nowrap", fontSize: "11px" }}>
-                            Total 11KV Cable Utilized (Start to End)
-                          </td>
-                          <td colSpan="2" style={{ padding: "10px", border: "1px solid #333", fontWeight: "bold", textAlign: "center", backgroundColor: "#f9f9f9" }}>
-                            {totalUtilized} Meter
-                          </td>
-                        </tr>
-                      );
-
-                      return rows;
+                      if (isHorizontal) {
+                        // HORIZONTAL FORMAT
+                        return (
+                          <>
+                            {/* Item Code Row */}
+                            <tr>
+                              <th style={{ width: "80px", border: "2px solid #333", background: "#fff", padding: "4px", textAlign: "left", fontWeight: "bold", fontSize: "9px" }}>Item Code</th>
+                              {items.map((item, idx) => (
+                                <td key={idx} style={{ padding: "3px", border: "1px solid #333", fontSize: "8px", textAlign: "center", wordWrap: "break-word" }}>
+                                  {item.itemCode === "9925000010" ? "" : (item.itemCode || "-")}
+                                </td>
+                              ))}
+                            </tr>
+                            {/* Description Row */}
+                            <tr>
+                              <th style={{ width: "80px", border: "2px solid #333", background: "#fff", padding: "4px", textAlign: "left", fontWeight: "bold", fontSize: "9px" }}>Description</th>
+                              {items.map((item, idx) => (
+                                <td key={idx} style={{ padding: "3px", border: "1px solid #333", fontSize: "7px", textAlign: "left", lineHeight: "1.2", wordWrap: "break-word", maxHeight: "50px", overflow: "hidden" }}>
+                                  {item.desc}
+                                </td>
+                              ))}
+                            </tr>
+                            {/* Total Main Cable Row */}
+                            <tr>
+                              <th style={{ width: "80px", border: "2px solid #333", background: "#fff", padding: "4px", textAlign: "left", fontWeight: "bold", fontSize: "9px" }}>Total Main</th>
+                              {items.map((item, idx) => (
+                                <td key={idx} style={{ padding: "3px", border: "1px solid #333", fontSize: "8px", textAlign: "center" }}>
+                                  {item.main > 0 ? `${item.main} ${item.unit ? item.unit : ""}` : "-"}
+                                </td>
+                              ))}
+                            </tr>
+                            {/* Total Spare Cable Row */}
+                            <tr>
+                              <th style={{ width: "80px", border: "2px solid #333", background: "#fff", padding: "4px", textAlign: "left", fontWeight: "bold", fontSize: "9px" }}>Total Spare</th>
+                              {items.map((item, idx) => (
+                                <td key={idx} style={{ padding: "3px", border: "1px solid #333", fontSize: "8px", textAlign: "center" }}>
+                                  {item.spare > 0 ? `${item.spare} ${item.unit ? item.unit : ""}` : "-"}
+                                </td>
+                              ))}
+                            </tr>
+                          </>
+                        );
+                      } else {
+                        // VERTICAL FORMAT
+                        return (
+                          <>
+                            <tr>
+                              <th style={{ width: "20%", border: "2px solid #333", background: "#fff", padding: "8px" }}>Item Code</th>
+                              <th style={{ border: "2px solid #333", background: "#fff", padding: "8px" }}>Description</th>
+                              <th style={{ width: "15%", border: "2px solid #333", background: "#fff", padding: "8px" }}>Total Main</th>
+                              <th style={{ width: "15%", border: "2px solid #333", background: "#fff", padding: "8px" }}>Total Spare</th>
+                            </tr>
+                            {items.map((item, idx) => (
+                              <tr key={idx}>
+                                <td style={{ border: "1px solid #333", padding: "6px" }}>{item.itemCode === "9925000010" ? "" : (item.itemCode || "-")}</td>
+                                <td style={{ border: "1px solid #333", padding: "6px", textAlign: "left" }}>{item.desc}</td>
+                                <td style={{ border: "1px solid #333", padding: "6px", textAlign: "center" }}>
+                                  {item.main > 0 ? `${item.main} ${item.unit ? item.unit : ""}` : "-"}
+                                </td>
+                                <td style={{ border: "1px solid #333", padding: "6px", textAlign: "center" }}>
+                                  {item.spare > 0 ? `${item.spare} ${item.unit ? item.unit : ""}` : "-"}
+                                </td>
+                              </tr>
+                            ))}
+                          </>
+                        );
+                      }
                     })()}
                   </tbody>
                 </table>
@@ -230,15 +310,7 @@ const PdfTemplate = ({ values, allProjects = [], onReady }) => {
             Grand Total (Description-wise)
           </h6>
 
-          <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "center", marginBottom: "0" }}>
-            <thead>
-              <tr style={{ borderBottom: "2px solid #000", color: "#000" }}>
-                <th style={{ padding: "10px", border: "2px solid #333", width: "15%" }}>Item Code</th>
-                <th style={{ padding: "10px", border: "2px solid #333", width: "45%" }}>Description</th>
-                <th style={{ padding: "10px", border: "2px solid #333", width: "20%" }}>Total Main Cable</th>
-                <th style={{ padding: "10px", border: "2px solid #333", width: "20%" }}>Total Spare Cable</th>
-              </tr>
-            </thead>
+          <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "center", marginBottom: "0", tableLayout: isHorizontal ? "fixed" : "auto" }}>
             <tbody>
               {(() => {
                 const grandTotals = {};
@@ -284,43 +356,83 @@ const PdfTemplate = ({ values, allProjects = [], onReady }) => {
                 if (order.length === 0) {
                   return (
                     <tr>
-                      <td colSpan="4" style={{ padding: "15px", color: "#6c757d", border: "1px solid #dee2e6" }}>
+                      <td colSpan="100%" style={{ padding: "15px", color: "#6c757d", border: "1px solid #dee2e6" }}>
                         No items found across projects
                       </td>
                     </tr>
                   );
                 }
 
-                const rows = order.sort().map((key, idx) => {
-                  const item = grandTotals[key];
+                const sortedOrder = order.sort();
+                const items = sortedOrder.map(key => grandTotals[key]);
+
+                if (isHorizontal) {
+                  // HORIZONTAL FORMAT
                   return (
-                    <tr key={idx}>
-                      <td style={{ padding: "10px", border: "1px solid #333" }}>{item.itemCode === "9925000010" ? "" : (item.itemCode || "-")}</td>
-                      <td style={{ padding: "10px", border: "1px solid #333", textAlign: "left" }}>{item.desc}</td>
-                      <td style={{ padding: "10px", border: "1px solid #333" }}>
-                        {item.main > 0 ? `${item.main} ${item.unit ? item.unit : ""}` : "-"}
-                      </td>
-                      <td style={{ padding: "10px", border: "1px solid #333" }}>
-                        {item.spare > 0 ? `${item.spare} ${item.unit ? item.unit : ""}` : "-"}
-                      </td>
-                    </tr>
-                  )
-                });
-
-                // Append Total Cable Utilized Row
-                rows.push(
-                  <tr key="total-utilized" style={{ borderTop: "2px solid #333" }}>
-                    <td style={{ border: "1px solid #333", backgroundColor: "#f9f9f9" }}></td>
-                    <td style={{ padding: "10px", border: "1px solid #333", textAlign: "right", fontWeight: "bold", backgroundColor: "#f9f9f9", whiteSpace: "nowrap", fontSize: "11px" }}>
-                      Total 11KV Cable Utilized (Start to End)
-                    </td>
-                    <td colSpan="2" style={{ padding: "10px", border: "1px solid #333", fontWeight: "bold", textAlign: "center", backgroundColor: "#f9f9f9" }}>
-                      {totalUtilized} Meter
-                    </td>
-                  </tr>
-                );
-
-                return rows;
+                    <>
+                      {/* Item Code Row */}
+                      <tr style={{ borderBottom: "2px solid #000", color: "#000" }}>
+                        <th style={{ width: "80px", border: "2px solid #333", background: "#fff", padding: "4px", textAlign: "left", fontWeight: "bold", fontSize: "9px" }}>Item Code</th>
+                        {items.map((item, idx) => (
+                          <td key={idx} style={{ padding: "3px", border: "1px solid #333", fontSize: "8px", textAlign: "center", wordWrap: "break-word" }}>
+                            {item.itemCode === "9925000010" ? "" : (item.itemCode || "-")}
+                          </td>
+                        ))}
+                      </tr>
+                      {/* Description Row */}
+                      <tr>
+                        <th style={{ width: "80px", border: "2px solid #333", background: "#fff", padding: "4px", textAlign: "left", fontWeight: "bold", fontSize: "9px" }}>Description</th>
+                        {items.map((item, idx) => (
+                          <td key={idx} style={{ padding: "3px", border: "1px solid #333", fontSize: "7px", textAlign: "left", lineHeight: "1.2", wordWrap: "break-word", maxHeight: "50px", overflow: "hidden" }}>
+                            {item.desc}
+                          </td>
+                        ))}
+                      </tr>
+                      {/* Total Main Cable Row */}
+                      <tr>
+                        <th style={{ width: "80px", border: "2px solid #333", background: "#fff", padding: "4px", textAlign: "left", fontWeight: "bold", fontSize: "9px" }}>Total Main</th>
+                        {items.map((item, idx) => (
+                          <td key={idx} style={{ padding: "3px", border: "1px solid #333", fontSize: "8px", textAlign: "center" }}>
+                            {item.main > 0 ? `${item.main} ${item.unit ? item.unit : ""}` : "-"}
+                          </td>
+                        ))}
+                      </tr>
+                      {/* Total Spare Cable Row */}
+                      <tr>
+                        <th style={{ width: "80px", border: "2px solid #333", background: "#fff", padding: "4px", textAlign: "left", fontWeight: "bold", fontSize: "9px" }}>Total Spare</th>
+                        {items.map((item, idx) => (
+                          <td key={idx} style={{ padding: "3px", border: "1px solid #333", fontSize: "8px", textAlign: "center" }}>
+                            {item.spare > 0 ? `${item.spare} ${item.unit ? item.unit : ""}` : "-"}
+                          </td>
+                        ))}
+                      </tr>
+                    </>
+                  );
+                } else {
+                  // VERTICAL FORMAT
+                  return (
+                    <>
+                      <tr style={{ borderBottom: "2px solid #000", color: "#000" }}>
+                        <th style={{ width: "20%", border: "2px solid #333", background: "#fff", padding: "8px" }}>Item Code</th>
+                        <th style={{ border: "2px solid #333", background: "#fff", padding: "8px" }}>Description</th>
+                        <th style={{ width: "15%", border: "2px solid #333", background: "#fff", padding: "8px" }}>Total Main</th>
+                        <th style={{ width: "15%", border: "2px solid #333", background: "#fff", padding: "8px" }}>Total Spare</th>
+                      </tr>
+                      {items.map((item, idx) => (
+                        <tr key={idx}>
+                          <td style={{ border: "1px solid #333", padding: "6px" }}>{item.itemCode === "9925000010" ? "" : (item.itemCode || "-")}</td>
+                          <td style={{ border: "1px solid #333", padding: "6px", textAlign: "left" }}>{item.desc}</td>
+                          <td style={{ border: "1px solid #333", padding: "6px", textAlign: "center" }}>
+                            {item.main > 0 ? `${item.main} ${item.unit ? item.unit : ""}` : "-"}
+                          </td>
+                          <td style={{ border: "1px solid #333", padding: "6px", textAlign: "center" }}>
+                            {item.spare > 0 ? `${item.spare} ${item.unit ? item.unit : ""}` : "-"}
+                          </td>
+                        </tr>
+                      ))}
+                    </>
+                  );
+                }
               })()}
             </tbody>
           </table>
