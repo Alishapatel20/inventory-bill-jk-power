@@ -211,22 +211,6 @@ const PdfTemplate = ({ values, allProjects = [], onReady }) => {
                       const sortedOrder = order.sort();
                       const items = sortedOrder.map(key => totals[key]);
 
-                      // Calculate Total Utilized for specific items within this project
-                      let totalUtilized = 0;
-                      project.entries.forEach(entry => {
-                        entry.descriptions.forEach(d => {
-                          let isMatch = false;
-                          if (d.itemCode === "9925000007") isMatch = true;
-                          if (d.itemCode === "9925000047" && d.desc.includes("11KV cable loop")) isMatch = true;
-                          if (d.itemCode === "9925000010") isMatch = true;
-
-                          if (isMatch) {
-                            totalUtilized += parseQuantity(d.mainCableQty);
-                            totalUtilized += parseQuantity(d.spareCableQty);
-                          }
-                        });
-                      });
-
                       if (isHorizontal) {
                         // HORIZONTAL FORMAT
                         return (
@@ -335,20 +319,6 @@ const PdfTemplate = ({ values, allProjects = [], onReady }) => {
                       }
                       grandTotals[key].main += parseQuantity(d.mainCableQty);
                       grandTotals[key].spare += parseQuantity(d.spareCableQty);
-
-                      // Calculate Total Utilized for specific items
-                      let isMatch = false;
-                      // 9925000007: Horizontal drilling...
-                      if (d.itemCode === "9925000007") isMatch = true;
-                      // 9925000047: 11KV cable loop at transformer & DP (Check description as code is reused)
-                      if (d.itemCode === "9925000047" && d.desc.includes("11KV cable loop")) isMatch = true;
-                      // 9925000010: Cable rising at DP structure
-                      if (d.itemCode === "9925000010") isMatch = true;
-
-                      if (isMatch) {
-                        totalUtilized += parseQuantity(d.mainCableQty);
-                        totalUtilized += parseQuantity(d.spareCableQty);
-                      }
                     });
                   });
                 });
